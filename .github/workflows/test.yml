@@ -1,0 +1,83 @@
+name: Test
+
+on:
+  push:
+    branches: ['2.0.x']
+  pull_request:
+    branches: ['2.0.x']
+  workflow_dispatch:
+
+env:
+  FORCE_COLOR: '1'
+
+jobs:
+  cucumber:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Install DDEV
+        uses: ddev/github-action-setup-ddev@v1
+        with:
+          autostart: false
+
+      - name: Trust DDEV's local CA for Node (axios status-code checks)
+        run: echo "NODE_EXTRA_CA_CERTS=$(mkcert -CAROOT)/rootCA.pem" >> "$GITHUB_ENV"
+
+      - name: Build a default WordPress site with DDEV
+        run: |
+          # A plain `wp core install` — no theme, no permalink structure, no
+          # menu, no widget setup. tests/features/*.feature discover real
+          # content (a page, a post, a category) via the REST API at runtime
+          # and don't assume any particular markup beyond what WordPress core
+          # itself always renders, so this same untouched default install
+          # works whether the active theme is classic or block-based.
+          ddev config --project-type=wordpress --project-name=wordpress-steps --docroot=web --create-docroot
+          ddev start
+          ddev wp core download --path=web
+          ddev wp config create --path=web --dbname=db --dbuser=db --dbpass=db --dbhost=db --skip-check --force
+          ddev wp core install \
+            --path=web \
+            --url="https://wordpress-steps.ddev.site" \
+            --title="wordpress-steps CI" \
+            --admin_user=admin \
+            --admin_password=admin \
+            --admin_email=admin@example.com \
+            --skip-email
+
+          # Recent WordPress versions auto-enable a pretty permalink
+          # structure on fresh installs when the server advertises rewrite
+          # support, but `wp core install` doesn't always leave every rewrite
+          # rule (e.g. taxonomy archives) actually wired up server-side. A
+          # flush regenerates them from whatever structure the install
+          # already chose — it doesn't set or change the structure itself.
+          ddev wp rewrite flush --hard --path=web
+
+      - name: Run cucumber dry-run (no ambiguous/undefined steps)
+        run: npm run test:dry
+
+      - name: Run WordPress step tests
+        env:
+          LAUNCH_URL: https://wordpress-steps.ddev.site
+        run: npm test
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cucumber-report
+          path: |
+            tests/reports/cucumber_report.json
+            screenshots/
+          retention-days: 14
