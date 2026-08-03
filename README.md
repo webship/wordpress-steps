@@ -2,7 +2,7 @@
 
 [![Test](https://github.com/webship/wordpress-steps/actions/workflows/test.yml/badge.svg)](https://github.com/webship/wordpress-steps/actions/workflows/test.yml)
 
-WordPress-specific Cucumber step definitions for [webship-js](https://www.npmjs.com/package/webship-js) — a Playwright + Cucumber BDD testing framework. `@webship/wordpress-steps` adds a `wordpress.steps.js` step-pack that understands WordPress's own markup conventions (body classes, `#wpadminbar`, `#loginform`, `.site-title`, widgets, comment forms, search) so you can write readable Gherkin scenarios against the main pages of any WordPress site without hand-rolling CSS selectors.
+WordPress-specific Cucumber step definitions for [webship-js](https://www.npmjs.com/package/webship-js) — a Playwright + Cucumber BDD testing framework. `@webship-js/wordpress-steps` adds a `wordpress.steps.js` step-pack that understands WordPress's own markup conventions (body classes, `#wpadminbar`, `#loginform`, `.site-title`, widgets, comment forms, search) so you can write readable Gherkin scenarios against the main pages of any WordPress site without hand-rolling CSS selectors.
 
 It is a **plugin for webship-js** — it does not run standalone. It ships one file of step definitions plus example `.feature` files; you drop it into an existing (or new) webship-js test project.
 
@@ -27,7 +27,7 @@ See [`tests/step-definitions/wordpress.steps.js`](tests/step-definitions/wordpre
 ## Installation
 
 ```bash
-npm install --save-dev webship-js @webship/wordpress-steps
+npm install --save-dev webship-js @webship-js/wordpress-steps
 ```
 
 Add both step-definition paths to your project's `cucumber.js`:
@@ -37,7 +37,7 @@ module.exports = {
   default: {
     require: [
       'node_modules/webship-js/tests/step-definitions/**/*.js', // webship-js core steps
-      'node_modules/@webship/wordpress-steps/tests/step-definitions/**/*.js', // this plugin
+      'node_modules/@webship-js/wordpress-steps/tests/step-definitions/**/*.js', // this plugin
       'tests/step-definitions/**/*.js', // your own custom steps, if any
     ],
     paths: ['tests/features/**/*.feature'],
