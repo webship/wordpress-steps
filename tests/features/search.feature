@@ -14,4 +14,6 @@ Feature: Search
     When I search the site for "qzxjvwk-no-such-content"
     Then the response status code should be 200
     And I should see search results for "qzxjvwk-no-such-content"
-    And I should not see any post entries
+    # Core sets this class when is_search() has no matches. Counting entries
+    # would not work: themes render a "More posts" block on empty results.
+    And "body" should have class "search-no-results"
