@@ -1,17 +1,29 @@
-Feature: WordPress homepage
+Feature: Homepage
   As an anonymous visitor
-  I want the WordPress front page to load correctly
-  So that I know the site is up and rendering its core layout
+  I want the front page to load and render its core layout
+  So that a broken theme, a fatal error or a missing menu is caught first
+
+  Background:
+    Given I am an anonymous user
 
   @critical
-  Scenario: Homepage renders the front-page template
-    Given I am an anonymous user
-    And I am on the homepage
-    Then I should be on the front page
-    And the response status code should be 200
-
-  Scenario: Homepage shows the core site layout
+  Scenario: The front page is served and uses the home template
     Given I am on the homepage
-    Then I should see the site title
-    And I should see the primary navigation menu
-    And I should see the footer
+    Then the response status code should be 200
+    And "body" should have class "home"
+    And I should see the site title
+
+  Scenario: The front page exposes the site's primary landmarks
+    Given I am on the homepage
+    Then the page should have a navigation landmark
+    And "footer" should be visible
+
+  Scenario: The front page renders without JavaScript errors
+    Given I am on the homepage
+    Then there should be no JavaScript errors
+
+  Scenario: The front page keeps its landmarks on a phone viewport
+    Given I am on the homepage
+    When I set the viewport to the "xs" breakpoint
+    Then the page should have a navigation landmark
+    And "footer" should be visible

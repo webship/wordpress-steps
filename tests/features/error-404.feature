@@ -1,14 +1,13 @@
-Feature: WordPress 404 page
+Feature: Missing content
   As an anonymous visitor
-  I want to see a proper 404 page for unknown URLs
-  So that I know WordPress is handling missing content correctly
+  I want unknown URLs to return a real 404
+  So that missing content is never served as a soft 200
 
-  Scenario: An unknown URL renders the 404 template
-    # A non-existent post ID (rather than a guessed slug) 404s reliably
-    # regardless of the site's permalink structure — under the default
-    # "Plain" structure, an arbitrary unknown slug has no rewrite rule to
-    # parse it as a content lookup at all, so it falls through to the
-    # homepage instead of triggering is_404().
+  Scenario: An unknown post ID returns a 404 response and template
     Given I am on "/?p=999999999"
-    Then I should be on the 404 page
-    And the response status code should be 404
+    Then the response status code should be 404
+    And "body" should have class "error404"
+
+  Scenario: An unknown path returns a 404 response
+    Given I am on "/this-path-does-not-exist"
+    Then the response status code should be 404

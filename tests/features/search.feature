@@ -1,10 +1,17 @@
-Feature: WordPress search
+Feature: Search
   As an anonymous visitor
-  I want to search a WordPress site
-  So that I can find content matching a term
+  I want to search the site
+  So that both the matching and the empty result paths are known to work
 
-  Scenario: Searching returns the WordPress search-results template
+  Scenario: Searching for content that exists returns the results template
     Given I am on the homepage
     When I search the site for existing content
-    Then I should see search results for that content
-    And the response status code should be 200
+    Then the response status code should be 200
+    And I should see search results for that content
+
+  Scenario: Searching for a term with no matches still returns a results page
+    Given I am on the homepage
+    When I search the site for "qzxjvwk-no-such-content"
+    Then the response status code should be 200
+    And I should see search results for "qzxjvwk-no-such-content"
+    And "article" should have a count of 0

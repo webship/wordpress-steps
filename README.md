@@ -2,7 +2,9 @@
 
 [![Test](https://github.com/webship/wordpress-steps/actions/workflows/test.yml/badge.svg)](https://github.com/webship/wordpress-steps/actions/workflows/test.yml)
 
-WordPress-specific Cucumber step definitions for [webship-js](https://www.npmjs.com/package/webship-js) — a Playwright + Cucumber BDD testing framework. `@webship-js/wordpress-steps` adds a `wordpress.steps.js` step-pack that understands WordPress's own markup conventions (body classes, `#wpadminbar`, `#loginform`, `.site-title`, widgets, comment forms, search) so you can write readable Gherkin scenarios against the main pages of any WordPress site without hand-rolling CSS selectors.
+WordPress-specific Cucumber step definitions for [webship-js](https://www.npmjs.com/package/webship-js) — a Playwright + Cucumber BDD testing framework. `@webship-js/wordpress-steps` adds a `wordpress.steps.js` step-pack that understands WordPress's own markup conventions (`#wpadminbar`, `#loginform`, `.site-title`, comment forms, search) and discovers real content through the REST API, so you can write readable Gherkin scenarios against the main pages of any WordPress site without hand-rolling CSS selectors or hard-coding slugs.
+
+The pack stays deliberately small: anything webship-js already covers — body classes, landmarks, status codes, element assertions — is used from the core pack rather than redefined here.
 
 It is a **plugin for webship-js** — it does not run standalone. It ships one file of step definitions plus example `.feature` files; you drop it into an existing (or new) webship-js test project.
 
@@ -15,7 +17,7 @@ It is a **plugin for webship-js** — it does not run standalone. It ships one f
 - Site search
 - 404 error page
 - `wp-login.php` login form + authentication
-- Site title, primary navigation, footer, widgets, comment form
+- Site title, admin toolbar, comment form
 
 See [`tests/step-definitions/wordpress.steps.js`](tests/step-definitions/wordpress.steps.js) for the full list of steps — each is documented with a JSDoc block and Gherkin examples.
 
@@ -43,6 +45,13 @@ module.exports = {
     paths: ['tests/features/**/*.feature'],
     worldParameters: {
       launchUrl: process.env.LAUNCH_URL || 'https://your-wordpress-site.example',
+      // Named accounts for "Given I am a logged in user with the username ...".
+      users: {
+        admin: {
+          username: process.env.WP_ADMIN_USER || 'admin',
+          password: process.env.WP_ADMIN_PASSWORD || 'admin',
+        },
+      },
       // ...
     },
   },
@@ -54,17 +63,18 @@ This repo's own [`tests/features/`](tests/features/) directory doubles as a work
 ## Quick example
 
 ```gherkin
-Feature: WordPress homepage
+Feature: Homepage
 
-  Scenario: Homepage renders the front-page template
+  Scenario: The front page is served and uses the home template
     Given I am an anonymous user
     And I am on the homepage
-    Then I should be on the front page
-    And the response status code should be 200
+    Then the response status code should be 200
+    And "body" should have class "home"
     And I should see the site title
-    And I should see the primary navigation menu
-    And I should see the footer
+    And the page should have a navigation landmark
 ```
+
+Steps like `"body" should have class "home"` and `the page should have a navigation landmark` come from webship-js itself; only `I should see the site title` is from this pack.
 
 More runnable examples: [tests/features/](tests/features/).
 

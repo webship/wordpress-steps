@@ -1,18 +1,16 @@
-Feature: WordPress single posts
+Feature: Single posts
   As an anonymous visitor
-  I want a single WordPress blog post to render correctly
-  So that I know the "post" post type is being served properly
+  I want a published post to be served on its own permalink
+  So that the "post" post type and its template are known to work
 
-  Scenario: A single post renders the post template
+  Scenario: A published post is served with the single template
     Given I am on a post
-    Then I should be on a "single" page
-    And the response status code should be 200
+    Then the response status code should be 200
+    And "body" should have class "single"
     And I should see the post title
 
-  # Assumes the most recent published post has comments open — true for the
-  # "Hello world!" post on any untouched default `wp core install`. Remove
-  # this scenario if running against a site that has closed comments on its
-  # latest post.
-  Scenario: A single post with open comments shows the comment form
+  # Assumes comments are open on the most recent post — true for the default
+  # "Hello world!" post. Drop this scenario if the site closes comments.
+  Scenario: A post with open comments invites a visitor to reply
     Given I am on a post
     Then I should see the comment form
