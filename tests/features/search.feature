@@ -14,4 +14,4 @@ Feature: Search
     When I search the site for "qzxjvwk-no-such-content"
     Then the response status code should be 200
     And I should see search results for "qzxjvwk-no-such-content"
-    And "article" should have a count of 0
+    And I should not see any post entries

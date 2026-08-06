@@ -11,4 +11,4 @@ Feature: Category archives
 
   Scenario: A category archive lists at least one entry
     Given I am on a category archive
-    Then "article" should be visible
+    Then I should see post entries

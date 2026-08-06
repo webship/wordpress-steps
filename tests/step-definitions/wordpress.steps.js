@@ -209,6 +209,35 @@ Then(/^(I |we )*should( not)* see the (?:post|page|content) title$/, async funct
   }
 });
 
+/**
+ * Assert the page lists post entries — the archive/search loop rendered rows.
+ *
+ * Classic themes wrap each entry in `<article>`; block themes render the Post
+ * Template block as `<li class="wp-block-post …">`. Both carry the classes
+ * `post_class()` emits, so `.post` catches what the tag names miss.
+ *
+ * Example #1: Then I should see post entries
+ * Example #2: And we should see post entries
+ * Example #3: Then should see post entries
+ * Example #4: Then I should not see any post entries
+ * Example #5: But we should not see any post entries
+ *
+ */
+Then(/^(I |we )*should( not)* see (?:any )?post entries$/, async function (pronounCase, notCase) {
+  const entries = this.page.locator('article, .wp-block-post, .post');
+  const count = await entries.count();
+  if (notCase) {
+    assert.strictEqual(count, 0, `Expected no post entries on the page but found ${count}.`);
+    return;
+  }
+  if (count === 0) {
+    throw friendly({
+      message: 'Expected the page to list at least one post entry, but found none.',
+      hint: 'The loop rendered nothing — check the category or search actually has published posts, or that the theme marks entries with post_class().',
+    });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
