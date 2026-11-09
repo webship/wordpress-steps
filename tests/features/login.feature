@@ -26,7 +26,7 @@ Feature: Authentication
   Scenario: An incorrect password is rejected and the form is offered again
     Given I am on the login page
     When I log in as "admin" with password "not-the-real-password"
-    Then I should see "incorrect" in "#login_error" element
+    Then I should see a login error "incorrect"
     And I should see the login form
 
   Scenario: An anonymous visitor has no authenticated session
