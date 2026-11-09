@@ -33,3 +33,10 @@ Feature: Authentication
     Given I am an anonymous user
     And I am on the homepage
     Then I should not see the admin bar
+
+  Scenario: Ending the session returns the visitor to the login form
+    Given I am a logged in user with the username "admin"
+    And I am not logged in
+    Then I should see the login form
+    When I go to the homepage
+    Then I should not see the admin bar
