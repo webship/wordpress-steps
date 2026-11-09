@@ -346,7 +346,19 @@ async function submitLogin(world, username, password) {
   try {
     await world.page.locator('#user_login').fill(username);
     await world.page.locator('#user_pass').fill(password);
-    await world.page.locator('#wp-submit').click();
+    // Submit from inside the page rather than with a pointer click: a fixed
+    // overlay (a cookie banner, a chat widget) can sit on top of the button and
+    // make a real click wait out its actionability timeout, while the form's
+    // own submit cannot be covered. Wait for the navigation it starts.
+    await Promise.all([
+      world.page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {}),
+      world.page.evaluate(() => {
+        const submit = document.querySelector('#wp-submit');
+        if (submit) { submit.click(); return; }
+        const form = document.querySelector('#loginform') || document.forms[0];
+        if (form) form.submit();
+      }),
+    ]);
   } catch (err) {
     throw friendly({
       message: `Could not submit the login form as "${username}".`,
@@ -438,6 +450,32 @@ Given(/^(I am |we are )*a logged in user with( the)*( username)* "([^"]*)?"( use
   await gotoUrl(this.page, siteRoot(this.launchUrl) + '/wp-login.php');
   await this.page.waitForSelector('#loginform', { state: 'visible', timeout: 10000 });
   await submitLogin(this, username, password);
+});
+
+/**
+ * End any authenticated session and land on the login screen as a visitor:
+ * cookies and web storage are cleared, the login page is opened and the core
+ * login form is confirmed. Use it at the start of a scenario that must run
+ * anonymously after an earlier one logged in, or mid-scenario to check what a
+ * visitor gets at a path an authenticated user just saw.
+ *
+ * Example #1: Given I am not logged in
+ * Example #2: Given we are not logged in
+ * Example #3: And I am not logged in
+ * Example #4: Given not logged in
+ * Example #5: But I am not logged in
+ *
+ */
+Given(/^(I am |we are )*not logged in$/, async function (pronounCase) {
+  await this.context.clearCookies();
+  try {
+    await this.page.evaluate(() => {
+      try { localStorage.clear(); } catch { /* storage may be unavailable */ }
+      try { sessionStorage.clear(); } catch { /* storage may be unavailable */ }
+    });
+  } catch { /* the page may not be on a real URL yet */ }
+  await gotoUrl(this.page, siteRoot(this.launchUrl) + '/wp-login.php');
+  await this.page.waitForSelector('#loginform', { state: 'visible', timeout: 10000 });
 });
 
 /**

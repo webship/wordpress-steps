@@ -17,6 +17,7 @@ It is a **plugin for webship-js** — it does not run standalone. It ships one f
 - Site search
 - 404 error page
 - `wp-login.php` login form + authentication
+- Sessions — log in as a named account from `worldParameters.users`, submit the login form robustly (an in-page submit that an overlay cannot block), and `Given I am not logged in` to end a session and land on the login form; for fast suites, snapshot an authenticated session once with webship-js's own `save the auth state` / `restore the auth state` steps
 - Site title, admin toolbar, comment form
 
 See [`tests/step-definitions/wordpress.steps.js`](tests/step-definitions/wordpress.steps.js) for the full list of steps — each is documented with a JSDoc block and Gherkin examples.
