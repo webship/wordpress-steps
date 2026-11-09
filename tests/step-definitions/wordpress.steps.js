@@ -9,7 +9,6 @@
 // failure, not an override.
 
 const { Given, When, Then } = require('@cucumber/cucumber');
-const assert = require('assert');
 const axios = require('axios');
 const { gotoUrl, smartSettle, friendly } = require('webship-js/tests/step-definitions/webship');
 
@@ -20,7 +19,37 @@ const { gotoUrl, smartSettle, friendly } = require('webship-js/tests/step-defini
 // None of the phrasings below match the core AfterStep auto-settle regex, so
 // they settle themselves.
 async function settle(world) {
-  await smartSettle(world.page, (world.minWaitTime && world.minWaitTime.page) || 8000);
+  await smartSettle(world.page, budget(world));
+}
+
+// The per-page wait budget from `worldParameters.minWaitTime.page`.
+function budget(world) {
+  return (world && world.minWaitTime && world.minWaitTime.page) || 3000;
+}
+
+// Whitespace-tolerant, case-sensitive regex for "contains this text", so a
+// Playwright `hasText` filter can be the wait.
+function textPattern(text) {
+  return new RegExp(text.trim().split(/\s+/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'));
+}
+
+// Assert a locator's text contains (or, with `notCase`, does not contain) the
+// expected text. The assertion is the wait: the locator is narrowed to "has
+// this text" and Playwright polls for that narrowed set to exist or be gone.
+async function expectText(locator, expectedText, notCase, { label, hint, timeout = 10000 }) {
+  const withText = locator.filter({ hasText: textPattern(expectedText) });
+  try {
+    await withText.waitFor({ state: notCase ? 'detached' : 'attached', timeout });
+  } catch (err) {
+    const text = ((await locator.textContent({ timeout: 1000 }).catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+    throw friendly({
+      message: notCase
+        ? `Expected ${label} not to contain "${expectedText}".`
+        : `Expected ${label} to contain "${expectedText}".`,
+      cause: `it reads "${text}"`,
+      hint,
+    });
+  }
 }
 
 function siteRoot(launchUrl) {
@@ -113,17 +142,25 @@ Then(/^(I |we )*should( not)* see the site title(?: "([^"]*)?")?$/, async functi
   }
 
   await expectRendered(siteTitle, false, { label: 'the site title', hint, presenceOnly: true });
-  const text = ((await siteTitle.textContent()) || '').trim();
 
   if (!expectedTitle) {
-    assert.ok(text.length > 0, 'Expected the site title to contain text but it was empty');
+    // Any non-blank text will do: wait for the element to carry some.
+    try {
+      await siteTitle.filter({ hasText: /\S/ }).waitFor({ state: 'attached', timeout: budget(this) });
+    } catch (err) {
+      throw friendly({
+        message: 'Expected the site title to contain text, but it is empty.',
+        cause: err,
+        hint: 'Set a site title under Settings > General, or assert on the logo image when the theme shows only a logo.',
+      });
+    }
     return;
   }
-  if (notCase) {
-    assert.ok(!text.includes(expectedTitle), `Expected the site title NOT to contain "${expectedTitle}" but it was "${text}"`);
-  } else {
-    assert.ok(text.includes(expectedTitle), `Expected the site title to contain "${expectedTitle}" but found "${text}"`);
-  }
+  await expectText(siteTitle, expectedTitle, notCase, {
+    label: 'the site title',
+    hint: 'The text is matched as a case-sensitive substring of the rendered site title; check Settings > General.',
+    timeout: budget(this),
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -195,18 +232,11 @@ Then(/^(I |we )*should( not)* see the (?:post|page|content) title$/, async funct
       hint: 'Run "Given I am on a page", "Given I am on a post" or "Given I am on a category archive" earlier in the scenario.',
     });
   }
-  const bodyText = (await this.page.locator('body').innerText()) || '';
-  if (notCase) {
-    assert.ok(
-      !bodyText.includes(this.contentTitle),
-      `Expected the page NOT to display the content title "${this.contentTitle}" but it was found in the page body`
-    );
-  } else {
-    assert.ok(
-      bodyText.includes(this.contentTitle),
-      `Expected the page to display the content title "${this.contentTitle}" but it was not found in the page body`
-    );
-  }
+  await expectText(this.page.locator('body'), this.contentTitle, notCase, {
+    label: `the page body (looking for the content title "${this.contentTitle}")`,
+    hint: 'The title comes from the content API; a theme that hides the title on this template, or rewrites it, fails this step.',
+    timeout: budget(this),
+  });
 });
 
 /**
@@ -225,17 +255,14 @@ Then(/^(I |we )*should( not)* see the (?:post|page|content) title$/, async funct
  */
 Then(/^(I |we )*should( not)* see (?:any )?post entries$/, async function (pronounCase, notCase) {
   const entries = this.page.locator('article, .wp-block-post, .post');
-  const count = await entries.count();
-  if (notCase) {
-    assert.strictEqual(count, 0, `Expected no post entries on the page but found ${count}.`);
-    return;
-  }
-  if (count === 0) {
-    throw friendly({
-      message: 'Expected the page to list at least one post entry, but found none.',
-      hint: 'The loop rendered nothing — check the category or search actually has published posts, or that the theme marks entries with post_class().',
-    });
-  }
+  await expectRendered(entries.first(), notCase, {
+    label: 'a post entry (an "article", ".wp-block-post" or ".post" element)',
+    hint: notCase
+      ? 'The loop rendered entries; check the archive or search really has no published posts.'
+      : 'The loop rendered nothing; check the category or search actually has published posts, or that the theme marks entries with post_class().',
+    presenceOnly: true,
+    timeout: budget(this),
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -320,19 +347,29 @@ Then(/^(I |we )*should see search results for (?:"([^"]*)?"|(?:that|the) content
       hint: 'Run a search step first, or name the term inline: Then I should see search results for "example".',
     });
   }
-  const classAttr = await this.page.locator('body').getAttribute('class');
-  assert.ok(
-    (classAttr || '').split(/\s+/).includes('search'),
-    `Expected the search-results template ("search" body class) but the body class was: "${classAttr}"`
-  );
+  try {
+    await this.page.locator('body.search').waitFor({ state: 'attached', timeout: budget(this) });
+  } catch (err) {
+    const classAttr = await this.page.locator('body').getAttribute('class').catch(() => '');
+    throw friendly({
+      message: 'Expected the search-results template ("search" body class).',
+      cause: `the body class was "${classAttr}"`,
+      hint: 'The theme must call body_class(); a search form posting elsewhere, or a redirect, lands on another template.',
+    });
+  }
   // A space reaches the URL as `+` or `%20` depending on whether the form or a
   // direct navigation submitted it.
-  const currentUrl = this.page.url();
   const encoded = encodeURIComponent(expected);
-  assert.ok(
-    currentUrl.includes(`s=${encoded.replace(/%20/g, '+')}`) || currentUrl.includes(`s=${encoded}`),
-    `Expected the search URL to carry the term "${expected}" but the URL was: ${currentUrl}`
-  );
+  const carriesTerm = (url) => url.includes(`s=${encoded.replace(/%20/g, '+')}`) || url.includes(`s=${encoded}`);
+  try {
+    await this.page.waitForURL((url) => carriesTerm(String(url)), { timeout: budget(this) });
+  } catch (err) {
+    throw friendly({
+      message: `Expected the search URL to carry the term "${expected}".`,
+      cause: `the URL was ${this.page.url()}`,
+      hint: 'Run a search step first, or name the same term the search used.',
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -402,6 +439,32 @@ Then(/^(I |we )*should( not)* see the (?:sign[- ]?in|login) form$/, async functi
   if (notCase) return;
   await expectRendered(this.page.locator('#user_login'), false, { label: 'the username field ("#user_login")', hint, timeout: 5000 });
   await expectRendered(this.page.locator('#user_pass'), false, { label: 'the password field ("#user_pass")', hint, timeout: 5000 });
+});
+
+/**
+ * Assert the login screen shows, or does not show, its error notice
+ * (`#login_error`), optionally containing a text such as "incorrect" or
+ * "Unknown username". The notice is what a wrong password, an unknown user or
+ * an empty form produces.
+ *
+ * Example #1: Then I should see a login error
+ * Example #2: And we should see a sign-in error message
+ * Example #3: Then should see a login error "incorrect"
+ * Example #4: Then I should not see a login error
+ * Example #5: But we should not see an error message "incorrect"
+ *
+ */
+Then(/^(I |we )*should( not)* see an? (?:login |sign[- ]?in )?error(?: message)?(?: "([^"]*)")?$/, async function (pronounCase, notCase, expectedText) {
+  const notice = this.page.locator('#login_error').first();
+  const hint = 'The core login screen renders the notice above the form; a security plugin may replace or suppress it.';
+  if (notCase && !expectedText) {
+    await expectRendered(notice, true, { label: 'the login error notice ("#login_error")', hint, timeout: budget(this) });
+    return;
+  }
+  await expectRendered(notice, false, { label: 'the login error notice ("#login_error")', hint, timeout: budget(this) });
+  if (expectedText) {
+    await expectText(notice, expectedText, notCase, { label: 'the login error notice', hint, timeout: budget(this) });
+  }
 });
 
 /**

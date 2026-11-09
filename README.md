@@ -16,7 +16,7 @@ It is a **plugin for webship-js** — it does not run standalone. It ships one f
 - Category / taxonomy archives
 - Site search
 - 404 error page
-- `wp-login.php` login form + authentication
+- `wp-login.php` login form + authentication, and its error notice (`Then I should see a login error "incorrect"`)
 - Sessions — log in as a named account from `worldParameters.users`, submit the login form robustly (an in-page submit that an overlay cannot block), and `Given I am not logged in` to end a session and land on the login form; for fast suites, snapshot an authenticated session once with webship-js's own `save the auth state` / `restore the auth state` steps
 - Site title, admin toolbar, comment form
 
@@ -109,6 +109,7 @@ Other scripts:
 | --- | --- |
 | `npm test` | Full suite, pretty output |
 | `npm run test:dry` | `--dry-run` — checks for undefined/ambiguous steps only |
+| `npm run test:examples` | No browser: every step's JSDoc carries five `Example #n:` lines that match its own definition and no other, and every feature step resolves to exactly one definition (also runs in CI) |
 | `npm run test:headed` | Headed browser |
 | `npm run test:chromium` / `test:firefox` / `test:webkit` | Pick a browser |
 
