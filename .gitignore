@@ -1,0 +1,15 @@
+node_modules/
+.claude/
+tests/reports/*.json
+tests/reports/*.html
+screenshots/
+videos/
+*.log
+.DS_Store
+package-lock.json
+
+# Ephemeral WordPress site used to run this repo's own tests/features/*.feature
+# suite locally (see README): `ddev wp core download` generates it fresh each
+# time, so neither the codebase nor the DDEV project config is checked in.
+/web/
+/.ddev/
