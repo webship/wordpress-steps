@@ -1,12 +1,15 @@
 module.exports = {
   default: {
-    timeout: 45000,
+    // The step timeout is webship-js's (45 s, set when it loads): WEBSHIP_STEP_TIMEOUT=<milliseconds> changes it; a `timeout` key here is ignored.
     requireModule: ['tsx/cjs'],
     require: [
       'node_modules/webship-js/tests/step-definitions/**/*.js',
       'tests/step-definitions/**/*.js',
     ],
-    paths: ['tests/features/**/*.feature'],
+    // FEATURES=tests/features/a.feature,tests/features/b.feature runs a subset.
+    paths: process.env.FEATURES ? process.env.FEATURES.split(',') : ['tests/features/**/*.feature'],
+    // CUCUMBER_TAGS=@critical runs a lane; the default keeps work-in-progress and auth-state setup out.
+    tags: process.env.CUCUMBER_TAGS || 'not @wip and not @auth-setup',
     format: [
       '@cucumber/pretty-formatter',
       'json:tests/reports/cucumber_report.json',
@@ -24,6 +27,10 @@ module.exports = {
     },
     worldParameters: {
       launchUrl: process.env.LAUNCH_URL || 'https://wptest.io',
+      // Video of the browser: 'off', 'on', 'on-failure' or 'tag' (scenarios tagged @video; @no-video opts out).
+      video: { mode: process.env.WEBSHIP_VIDEO || 'off', dir: './videos', size: { width: 1280, height: 720 }, filenamePattern: '{datetime}.{feature_file}.{scenario}.{status}.{ext}' },
+      // JavaScript errors the page raises: 'warn' reports them, 'fail' fails the scenario, 'off' ignores them; @js-fail, @js-warn and @js-off per scenario.
+      javascript: { mode: process.env.WEBSHIP_JS_ERROR_MODE || 'warn', levels: ['error'], ignore: '', beforeScenario: false, afterScenario: true },
       // Keeps passwords out of feature files; override per environment.
       users: {
         admin: {
