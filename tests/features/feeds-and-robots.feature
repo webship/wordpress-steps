@@ -17,6 +17,9 @@ Feature: Feeds, robots and sitemap
   Scenario: A category feed is valid RSS
     Then the feed "/category/uncategorized/feed/" should be a valid RSS feed with at least 1 item
 
+  Scenario: The Atom feed is valid Atom
+    Then the feed "/feed/atom/" should be a valid Atom feed with at least 1 item
+
   Scenario: Robots.txt is served and keeps the administration area out
     Then robots.txt should be served
     And robots.txt should disallow "/wp-admin/"

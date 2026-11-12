@@ -191,43 +191,65 @@ const FEEDS = {
   comments: '/comments/feed/',
 };
 
-// Fetch a feed and check it is RSS: the content type, the `rss` and `channel`
-// elements and a title. Returns the body and its item count.
-async function readFeed(world, path) {
+// The two feed formats WordPress serves: RSS 2.0 at `/feed/` and Atom at
+// `/feed/atom/`. Each has its own root element, title and entry element.
+const FEED_FORMATS = {
+  RSS: {
+    root: /<rss[\s>]/,
+    title: /<channel>[\s\S]*?<title[\s>]/,
+    item: /<item[\s>]/g,
+    describe: 'no <rss> and <channel> elements with a title',
+  },
+  Atom: {
+    root: /<feed[^>]*xmlns="http:\/\/www\.w3\.org\/2005\/Atom"/,
+    title: /<feed[\s\S]*?<title[\s>]/,
+    item: /<entry[\s>]/g,
+    describe: 'no <feed> element in the Atom namespace with a title',
+  },
+};
+
+// Fetch a feed and check its format: the status, the XML content type, the
+// root element and the feed title. Returns the body and its item count.
+async function readFeed(world, path, format = 'RSS') {
   const response = await world.context.request.get(joinUrl(world.launchUrl, path), { failOnStatusCode: false });
   const body = await response.text();
   const type = response.headers()['content-type'] || '';
+  const rules = FEED_FORMATS[format];
   const problems = [];
   if (response.status() !== 200) problems.push(`status ${response.status()}`);
   if (!/xml/.test(type)) problems.push(`content type "${type}"`);
-  if (!/<rss[\s>]/.test(body) || !/<channel>/.test(body)) problems.push('no <rss> and <channel> elements');
-  if (!/<channel>[\s\S]*?<title>/.test(body)) problems.push('no channel title');
+  if (!rules.root.test(body) || !rules.title.test(body)) problems.push(rules.describe);
   if (problems.length) {
+    const other = format === 'RSS' ? 'Atom' : 'RSS';
+    const isOther = response.status() === 200 && FEED_FORMATS[other].root.test(body);
     throw friendly({
-      message: `The feed "${path}" is not valid RSS.`,
+      message: `The feed "${path}" is not a valid ${format} feed.`,
       cause: problems.join(', '),
-      hint: 'WordPress serves its feeds at /feed/ and /comments/feed/; a plugin may redirect or turn them off, and PHP notices before the XML break it.',
+      hint: isOther
+        ? `It is an ${other} feed. Use: Then the feed "${path}" should be a valid ${other} feed.`
+        : 'WordPress serves RSS at /feed/ and /comments/feed/, and Atom at /feed/atom/; a plugin may redirect or turn the feeds off, and PHP notices before the XML break it.',
     });
   }
-  return { body, items: (body.match(/<item>/g) || []).length };
+  return { body, items: (body.match(rules.item) || []).length };
 }
 
 /**
- * Assert a feed is valid RSS: the site feed, the comments feed or a feed at a
- * path, such as a category or an author feed. It checks the status, the XML
- * content type, the `rss` and `channel` elements and the channel title, and
- * optionally that the feed has at least a number of items.
+ * Assert a feed is valid RSS or Atom: the site feed, the comments feed or a
+ * feed at a path, such as a category feed, an author feed or the Atom feed at
+ * `/feed/atom/`. It checks the status, the XML content type, the root element
+ * of the format (`rss` with a `channel`, or `feed` in the Atom namespace) and
+ * the feed title, and optionally that the feed has at least a number of items.
  *
  * Example #1: Then the site feed should be a valid RSS feed
  * Example #2: And the comments feed should be a valid RSS feed
  * Example #3: Then the feed "/category/uncategorized/feed/" should be a valid RSS feed
  * Example #4: And the site feed should be a valid RSS feed with at least 1 item
- * Example #5: Then the feed "/feed/atom/" should be a valid RSS feed
+ * Example #5: Then the feed "/feed/atom/" should be a valid Atom feed with at least 1 item
  *
  */
-Then(/^the (?:(site|comments) feed|feed "([^"]*)") should be a valid RSS feed(?: with at least (\d+) items?)?$/, async function (named, path, count) {
+Then(/^the (?:(site|comments) feed|feed "([^"]*)") should be a valid (RSS|Atom) feed(?: with at least (\d+) items?)?$/, async function (named, path, format, count) {
   const target = path || FEEDS[named];
-  const feed = await readFeed(this, target);
+  const feed = await readFeed(this, target, format);
   if (supplied(count) && feed.items < parseInt(count, 10)) {
     throw friendly({
       message: `Expected the feed "${target}" to have at least ${count} item(s).`,
