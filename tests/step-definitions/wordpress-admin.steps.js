@@ -625,14 +625,14 @@ Then(/^the site health test "([^"]*)" should (pass|be recommended|be critical)$/
  * It runs the scheduled events that are due, so a fatal error in a plugin's
  * event shows here. A site that runs cron from the system still answers.
  *
- * Example #1: Then the WordPress cron should respond
- * Example #2: And the WordPress cron should respond
+ * Example #1: Then the cron should respond
+ * Example #2: And the cron should respond
  * Example #3: Then the scheduled tasks should respond
  * Example #4: And the cron should respond
- * Example #5: Then the WordPress cron should respond without errors
+ * Example #5: Then the cron should respond without errors
  *
  */
-Then(/^the (?:WordPress cron|scheduled tasks|cron) should respond(?: without errors)?$/, async function () {
+Then(/^the (?:scheduled tasks|cron) should respond(?: without errors)?$/, async function () {
   const response = await this.context.request.get(this.launchUrl.replace(/\/+$/, '') + '/wp-cron.php?doing_wp_cron', { failOnStatusCode: false, timeout: 30000 });
   const body = await response.text();
   if (response.status() !== 200 || /fatal error|parse error|<b>Warning<\/b>/i.test(body)) {
