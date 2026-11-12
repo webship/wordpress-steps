@@ -56,6 +56,13 @@ jobs:
             --admin_email=admin@example.com \
             --skip-email
 
+          # The accounts the users registry in cucumber.js names (the password is
+          # the handle). Accounts are configuration: created once here, never
+          # by a feature.
+          for role in editor author contributor subscriber; do
+            ddev wp user create "$role" "$role@example.com" --role="$role" --user_pass="$role" --path=web
+          done
+
           # Recent WordPress versions auto-enable a pretty permalink
           # structure on fresh installs when the server advertises rewrite
           # support, but `wp core install` doesn't always leave every rewrite

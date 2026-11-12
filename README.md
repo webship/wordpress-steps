@@ -10,17 +10,12 @@ It is a **plugin for webship-js** — it does not run standalone. It ships one f
 
 ## What's covered
 
-- Homepage / front page
-- Static pages (`page` post type)
-- Single blog posts (`post` post type)
-- Category / taxonomy archives
-- Site search
-- 404 error page
-- `wp-login.php` login form + authentication, and its error notice (`Then I should see a login error "incorrect"`)
-- Sessions — log in as a named account from `worldParameters.users`, submit the login form robustly (an in-page submit that an overlay cannot block), and `Given I am not logged in` to end a session and land on the login form; for fast suites, snapshot an authenticated session once with webship-js's own `save the auth state` / `restore the auth state` steps
-- Site title, admin toolbar, comment form
+- **The public site:** front page, pages, posts, category archives, the 404 page, the site title and the comment form.
+- **Search:** open the results for a term, use the search form, assert that results exist or that none were found, and that a result lists an entry.
+- **Sessions and accounts:** the login screen and its error and message notices, login by a handle from the users registry (no password in a feature file), explicit credentials, logout the way a user does, the lost password screen, "logged in as" checked on the server, the account's role, and the admin bar.
+- **Roles and screens:** the administration screens by name (`Given I am on the "Plugins" admin screen`), the landing screen of each role, and the access denied screen a role without the capability gets.
 
-See [`tests/step-definitions/wordpress.steps.js`](tests/step-definitions/wordpress.steps.js) for the full list of steps — each is documented with a JSDoc block and Gherkin examples.
+Each step is documented with a JSDoc block and Gherkin examples in [`tests/step-definitions/`](tests/step-definitions/): `wordpress.steps.js` (the public site), `wordpress-session.steps.js` (sessions, accounts, roles) and `wordpress-helpers.js` (shared helpers, no steps).
 
 ## Requirements
 
@@ -46,12 +41,10 @@ module.exports = {
     paths: ['tests/features/**/*.feature'],
     worldParameters: {
       launchUrl: process.env.LAUNCH_URL || 'https://your-wordpress-site.example',
-      // Named accounts for "Given I am a logged in user with the username ...".
+      // The users registry: handles a feature can read, mapped to real accounts.
       users: {
-        admin: {
-          username: process.env.WP_ADMIN_USER || 'admin',
-          password: process.env.WP_ADMIN_PASSWORD || 'admin',
-        },
+        admin: { username: process.env.WP_ADMIN_USER || 'admin', password: process.env.WP_ADMIN_PASSWORD || 'admin' },
+        editor: { username: 'editor', password: process.env.WP_EDITOR_PASSWORD },
       },
       // ...
     },
@@ -79,6 +72,19 @@ Steps like `"body" should have class "home"` and `the page should have a navigat
 
 More runnable examples: [tests/features/](tests/features/).
 
+## Accounts
+
+Features log in by a handle from the users registry, `worldParameters.users` in `cucumber.js`. The handle maps to the real account, so a feature never carries a password:
+
+```gherkin
+Given I am a logged in user with the "editor" user
+Then I should be logged in as the "editor" user
+And my account should have the "editor" role
+And I should be on the "Dashboard" admin screen
+```
+
+This repository's `cucumber.js` registers `admin`, `editor`, `author`, `contributor` and `subscriber`. Each account name and password defaults to the handle and is overridden by `WP_<HANDLE>_USER` and `WP_<HANDLE>_PASSWORD`, for example `WP_ADMIN_USER=webmaster`. Accounts are configuration: create them once on the site, for example `wp user create editor editor@example.com --role=editor --user_pass=editor`. A feature never creates or deletes an account.
+
 ## Running this repo's own test suite
 
 This repository is itself a working webship-js project — its `tests/features/*.feature` files run against whatever WordPress site `LAUNCH_URL` points to.
@@ -99,6 +105,9 @@ ddev wp config create --path=web --dbname=db --dbuser=db --dbpass=db --dbhost=db
 ddev wp core install --path=web --url="https://wordpress-steps.ddev.site" \
   --title="wordpress-steps local" --admin_user=admin --admin_password=admin \
   --admin_email=admin@example.com --skip-email
+for role in editor author contributor subscriber; do
+  ddev wp user create "$role" "$role@example.com" --role="$role" --user_pass="$role" --path=web
+done
 
 LAUNCH_URL=https://wordpress-steps.ddev.site npm test
 ```
