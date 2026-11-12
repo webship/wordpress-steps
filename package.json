@@ -1,6 +1,6 @@
 {
   "name": "@webship-js/wordpress-steps",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "WordPress step definitions for webship-js (Playwright and Cucumber): sessions and roles, the administration area, the block editor, comments, search, the REST API, feeds and accessibility.",
   "main": "tests/step-definitions/wordpress.steps.js",
   "files": [
