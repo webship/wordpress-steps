@@ -18,3 +18,7 @@ Feature: Site Health and cron
 
   Scenario: The cron endpoint answers without error
     Then the WordPress cron should respond
+
+  Scenario: Site Health recommends removing what a default install leaves inactive
+    When I go to the "Site Health" admin screen
+    Then the site health test "You should remove inactive plugins" should be recommended
