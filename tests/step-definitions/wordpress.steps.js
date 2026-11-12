@@ -1,121 +1,30 @@
 'use strict';
 
-// WordPress-specific step definitions for webship-js.
+// WordPress step definitions for webship-js: the public site.
 //
 // Step phrasing stays CMS-agnostic; only the implementation is WordPress-aware.
-// Anything the core pack already covers (body classes, landmarks, status codes,
-// element assertions) is used from webship-js directly rather than redefined —
-// both packs share one namespace, so a duplicate phrasing is an ambiguous-step
+// Anything webship-js already covers (body classes, landmarks, status codes,
+// element assertions) is used from webship-js directly rather than redefined:
+// all packs share one namespace, so a duplicate phrasing is an ambiguous-step
 // failure, not an override.
+//
+// This pack's step files, by area:
+//   wordpress.steps.js           the public site: layout, content, search
+//   wordpress-session.steps.js   login, logout, accounts and roles
+//   wordpress-helpers.js         shared helpers, no steps
 
 const { Given, When, Then } = require('@cucumber/cucumber');
-const axios = require('axios');
-const { gotoUrl, smartSettle, friendly } = require('webship-js/tests/step-definitions/webship');
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// None of the phrasings below match the core AfterStep auto-settle regex, so
-// they settle themselves.
-async function settle(world) {
-  await smartSettle(world.page, budget(world));
-}
-
-// The per-page wait budget from `worldParameters.minWaitTime.page`.
-function budget(world) {
-  return (world && world.minWaitTime && world.minWaitTime.page) || 3000;
-}
-
-// Whitespace-tolerant, case-sensitive regex for "contains this text", so a
-// Playwright `hasText` filter can be the wait.
-function textPattern(text) {
-  return new RegExp(text.trim().split(/\s+/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'));
-}
-
-// Assert a locator's text contains (or, with `notCase`, does not contain) the
-// expected text. The assertion is the wait: the locator is narrowed to "has
-// this text" and Playwright polls for that narrowed set to exist or be gone.
-async function expectText(locator, expectedText, notCase, { label, hint, timeout = 10000 }) {
-  const withText = locator.filter({ hasText: textPattern(expectedText) });
-  try {
-    await withText.waitFor({ state: notCase ? 'detached' : 'attached', timeout });
-  } catch (err) {
-    const text = ((await locator.textContent({ timeout: 1000 }).catch(() => '')) || '').replace(/\s+/g, ' ').trim();
-    throw friendly({
-      message: notCase
-        ? `Expected ${label} not to contain "${expectedText}".`
-        : `Expected ${label} to contain "${expectedText}".`,
-      cause: `it reads "${text}"`,
-      hint,
-    });
-  }
-}
-
-function siteRoot(launchUrl) {
-  return String(launchUrl).replace(/\/$/, '');
-}
-
-// `presenceOnly` swaps visible/hidden for attached/detached — some themes wrap
-// content in a zero-height container that Playwright reports as hidden even
-// though it paints on screen.
-async function expectRendered(locator, notCase, { label, hint, presenceOnly = false, timeout = 10000 }) {
-  const state = presenceOnly
-    ? (notCase ? 'detached' : 'attached')
-    : (notCase ? 'hidden' : 'visible');
-  try {
-    await locator.waitFor({ state, timeout });
-  } catch (err) {
-    throw friendly({
-      message: notCase
-        ? `Expected ${label} to be gone from the page, but it is still there.`
-        : `Expected ${label} to be on the page, but it was not found in time.`,
-      cause: err,
-      hint,
-    });
-  }
-}
-
-// Ask the site for real content so scenarios never hard-code a slug, a publish
-// date or a category name. Uses `?rest_route=` rather than `/wp-json/`: the
-// pretty path only resolves once a permalink structure registers its rewrite
-// rule, so it 404s on a default install.
-async function discoverContent(baseUrl, route, params, describe) {
-  const query = new URLSearchParams({ rest_route: route, ...params }).toString();
-  const url = siteRoot(baseUrl) + '/?' + query;
-  let response;
-  try {
-    response = await axios.get(url, { validateStatus: () => true });
-  } catch (err) {
-    throw friendly({
-      message: `Could not reach the content API at ${url}.`,
-      cause: err,
-      hint: 'Check that launchUrl points at the running site and that the host is reachable from the test runner.',
-    });
-  }
-  if (response.status !== 200) {
-    throw friendly({
-      message: `The content API ("${route}") responded ${response.status} instead of 200.`,
-      hint: 'The site may have the REST API disabled, or launchUrl may point at the wrong host.',
-    });
-  }
-  if (!Array.isArray(response.data) || response.data.length === 0) {
-    throw friendly({
-      message: `The content API returned no ${describe}.`,
-      hint: `Publish at least one ${describe} on the site under test, or drop the scenario that needs one.`,
-    });
-  }
-  return response.data[0];
-}
-
-// Query-var routing (`?p=`, `?page_id=`, `?cat=`) is always honored; the REST
-// `link` field renders a pretty permalink that only resolves when the site's
-// rewrite rules are wired up server-side.
-async function gotoQuery(world, query) {
-  await gotoUrl(world.page, siteRoot(world.launchUrl) + '/?' + query);
-  await world.page.waitForSelector('body', { state: 'attached', timeout: 10000 });
-  await settle(world);
-}
+const { friendly } = require('webship-js/tests/step-definitions/webship');
+const {
+  budget,
+  settle,
+  navigate,
+  gotoQuery,
+  expectText,
+  expectRendered,
+  discoverContent,
+  renderedText,
+} = require('./wordpress-helpers');
 
 // ---------------------------------------------------------------------------
 // Layout
@@ -134,7 +43,7 @@ async function gotoQuery(world, query) {
  */
 Then(/^(I |we )*should( not)* see the site title(?: "([^"]*)?")?$/, async function (pronounCase, notCase, expectedTitle) {
   const siteTitle = this.page.locator('.site-title, .wp-block-site-title').first();
-  const hint = 'The theme may render the title as a logo image only, or use a non-core class — assert on the logo\'s alt text instead.';
+  const hint = 'The theme may render the title as a logo image only, or use a non-core class. Assert on the logo\'s alt text instead.';
 
   if (notCase && !expectedTitle) {
     await expectRendered(siteTitle, true, { label: 'the site title', hint, presenceOnly: true });
@@ -163,12 +72,54 @@ Then(/^(I |we )*should( not)* see the site title(?: "([^"]*)?")?$/, async functi
   });
 });
 
+/**
+ * Assert the admin toolbar is rendered. It is the cheapest signal that the
+ * session is, or is not, authenticated on the public site.
+ *
+ * Example #1: Then I should see the admin bar
+ * Example #2: And we should see the admin toolbar
+ * Example #3: Then should see the toolbar
+ * Example #4: Then I should not see the admin bar
+ * Example #5: But we should not see the toolbar
+ *
+ */
+Then(/^(I |we )*should( not)* see the (?:admin (?:bar|toolbar)|toolbar)$/, async function (pronounCase, notCase) {
+  await expectRendered(this.page.locator('#wpadminbar'), notCase, {
+    label: 'the admin toolbar ("#wpadminbar")',
+    hint: 'The toolbar only renders for an authenticated session that has not turned it off in the user profile.',
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Comments
+// ---------------------------------------------------------------------------
+
+/**
+ * Assert the comment form is rendered. It matches `#commentform` and the
+ * `.comment-form` class, which the core comment form carries in classic and
+ * block themes alike.
+ *
+ * Example #1: Then I should see the comment form
+ * Example #2: And we should see a comment form
+ * Example #3: Then should see the comments form
+ * Example #4: Then I should not see a comment form
+ * Example #5: But we should not see the comment form
+ *
+ */
+Then(/^(I |we )*should( not)* see (?:a|the) comments? form$/, async function (pronounCase, notCase) {
+  const form = this.page.locator('#commentform, form.comment-form').first();
+  await expectRendered(form, notCase, {
+    label: 'the comment form',
+    hint: 'Comments may be closed on this entry, or turned off site-wide in Settings > Discussion.',
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Content discovery
 // ---------------------------------------------------------------------------
 
 /**
- * Navigate to a real published page, discovered at runtime.
+ * Open a real published page, discovered through the REST API at run time.
  *
  * Example #1: Given I am on a page
  * Example #2: Given we are on a static page
@@ -178,13 +129,13 @@ Then(/^(I |we )*should( not)* see the site title(?: "([^"]*)?")?$/, async functi
  *
  */
 Given(/^(I am |we are )*on a (?:static )?page$/, async function (pronounCase) {
-  const page = await discoverContent(this.launchUrl, '/wp/v2/pages', { per_page: 1, status: 'publish' }, 'published page');
-  this.contentTitle = (page.title && page.title.rendered) || '';
+  const page = await discoverContent(this, '/wp/v2/pages', { per_page: 1, status: 'publish' }, 'published page');
+  this.contentTitle = renderedText(page.title && page.title.rendered);
   await gotoQuery(this, 'page_id=' + page.id);
 });
 
 /**
- * Navigate to a real published post, discovered at runtime.
+ * Open a real published post, discovered through the REST API at run time.
  *
  * Example #1: Given I am on a post
  * Example #2: Given we are on a blog post
@@ -194,13 +145,14 @@ Given(/^(I am |we are )*on a (?:static )?page$/, async function (pronounCase) {
  *
  */
 Given(/^(I am |we are )*on a (?:blog )?post$/, async function (pronounCase) {
-  const post = await discoverContent(this.launchUrl, '/wp/v2/posts', { per_page: 1, status: 'publish' }, 'published post');
-  this.contentTitle = (post.title && post.title.rendered) || '';
+  const post = await discoverContent(this, '/wp/v2/posts', { per_page: 1, status: 'publish' }, 'published post');
+  this.contentTitle = renderedText(post.title && post.title.rendered);
   await gotoQuery(this, 'p=' + post.id);
 });
 
 /**
- * Navigate to a real non-empty category archive, discovered at runtime.
+ * Open a real non-empty category archive, discovered through the REST API at
+ * run time.
  *
  * Example #1: Given I am on a category archive
  * Example #2: Given we are on a taxonomy archive
@@ -210,13 +162,16 @@ Given(/^(I am |we are )*on a (?:blog )?post$/, async function (pronounCase) {
  *
  */
 Given(/^(I am |we are )*on a (?:category|taxonomy) archive$/, async function (pronounCase) {
-  const category = await discoverContent(this.launchUrl, '/wp/v2/categories', { per_page: 1, hide_empty: 'true' }, 'non-empty category');
-  this.contentTitle = category.name || '';
+  const category = await discoverContent(this, '/wp/v2/categories', { per_page: 1, hide_empty: 'true' }, 'non-empty category');
+  this.contentTitle = renderedText(category.name);
   await gotoQuery(this, 'cat=' + category.id);
 });
 
 /**
- * Assert the title discovered by a prior navigation step is on the page.
+ * Assert the title found by an earlier "on a page", "on a post" or "on a
+ * category archive" step is in a heading of the page. The headings are the
+ * level-one heading and the theme's title elements, so a title that only
+ * appears in a "more posts" list does not count.
  *
  * Example #1: Then I should see the post title
  * Example #2: And we should see the page title
@@ -232,19 +187,18 @@ Then(/^(I |we )*should( not)* see the (?:post|page|content) title$/, async funct
       hint: 'Run "Given I am on a page", "Given I am on a post" or "Given I am on a category archive" earlier in the scenario.',
     });
   }
-  await expectText(this.page.locator('body'), this.contentTitle, notCase, {
-    label: `the page body (looking for the content title "${this.contentTitle}")`,
-    hint: 'The title comes from the content API; a theme that hides the title on this template, or rewrites it, fails this step.',
+  await expectText(this.page.locator('h1, h1.wp-block-post-title, .entry-title').filter({ visible: true }), this.contentTitle, notCase, {
+    label: `the page headings (looking for the content title "${this.contentTitle}")`,
+    hint: 'The title comes from the REST API; a theme that hides the title on this template, or rewrites it, fails this step.',
     timeout: budget(this),
   });
 });
 
 /**
- * Assert the page lists post entries — the archive/search loop rendered rows.
- *
- * Classic themes wrap each entry in `<article>`; block themes render the Post
- * Template block as `<li class="wp-block-post …">`. Both carry the classes
- * `post_class()` emits, so `.post` catches what the tag names miss.
+ * Assert the page lists post entries: the archive or search loop rendered
+ * rows. Classic themes wrap each entry in `<article>`; block themes render the
+ * Post Template block as `<li class="wp-block-post ...">`. Both carry the
+ * classes `post_class()` emits, so `.post` catches what the tag names miss.
  *
  * Example #1: Then I should see post entries
  * Example #2: And we should see post entries
@@ -258,8 +212,8 @@ Then(/^(I |we )*should( not)* see (?:any )?post entries$/, async function (prono
   await expectRendered(entries.first(), notCase, {
     label: 'a post entry (an "article", ".wp-block-post" or ".post" element)',
     hint: notCase
-      ? 'The loop rendered entries; check the archive or search really has no published posts.'
-      : 'The loop rendered nothing; check the category or search actually has published posts, or that the theme marks entries with post_class().',
+      ? 'The loop rendered entries; check the archive or search really has no published posts. Block themes also list "more posts" under an empty result.'
+      : 'The loop rendered nothing; check the category or search has published posts, or that the theme marks entries with post_class().',
     presenceOnly: true,
     timeout: budget(this),
   });
@@ -269,25 +223,38 @@ Then(/^(I |we )*should( not)* see (?:any )?post entries$/, async function (prono
 // Search
 // ---------------------------------------------------------------------------
 
-// Many themes render no search field at all by default. WordPress still serves
-// search.php for any `?s=` query, so fall back to navigating there.
-async function submitSearch(world, term) {
-  const searchField = world.page.locator('input.search-field, input[name="s"]').first();
-  const hasSearchField = await searchField
-    .waitFor({ state: 'visible', timeout: 5000 })
-    .then(() => true)
-    .catch(() => false);
-  if (hasSearchField) {
-    await searchField.fill(term);
-    await searchField.press('Enter');
-  } else {
-    await gotoUrl(world.page, siteRoot(world.launchUrl) + '/?s=' + encodeURIComponent(term));
+// The search form of the page. Core renders `form.search-form` (classic) and
+// the Search block `form.wp-block-search` (block themes); `role="search"` is
+// the landmark both carry.
+const SEARCH_FORM = 'form[role="search"], form.search-form, form.wp-block-search';
+
+// Open the site's own search results URL for a term. WordPress serves its
+// search template for any `?s=` query, whether or not the theme shows a form.
+async function openSearchResults(world, term) {
+  world.searchTerm = term;
+  await navigate(world, '/?s=' + encodeURIComponent(term));
+}
+
+// A search term from the title of a real published post, so the search is
+// guaranteed to match without naming content in the feature file.
+async function existingContentTerm(world) {
+  const post = await discoverContent(world, '/wp/v2/posts', { per_page: 1, status: 'publish' }, 'published post');
+  const words = renderedText(post.title && post.title.rendered).split(/\s+/).filter(Boolean);
+  const term = words.find((word) => /^[\p{L}\p{N}]{4,}$/u.test(word)) || words[0];
+  if (!term) {
+    throw friendly({
+      message: 'Could not derive a search term from the most recent published post.',
+      hint: 'The post title is empty. Publish a post with a title, or use: When I search the site for "term".',
+    });
   }
-  await settle(world);
+  return term;
 }
 
 /**
- * Search the site for a term.
+ * Open the search results for a term, through the site's own search URL
+ * (`/?s=term`). It tests the results template and the search itself on any
+ * theme, with or without a search form on the page. To test the form, use
+ * "I use the search form to search for".
  *
  * Example #1: When I search the site for "hello world"
  * Example #2: When we search for "contact"
@@ -297,8 +264,7 @@ async function submitSearch(world, term) {
  *
  */
 When(/^(I |we )*search (?:the site )?for "([^"]*)?"$/, async function (pronounCase, term) {
-  this.searchTerm = term;
-  await submitSearch(this, term);
+  await openSearchResults(this, term);
 });
 
 /**
@@ -313,23 +279,63 @@ When(/^(I |we )*search (?:the site )?for "([^"]*)?"$/, async function (pronounCa
  *
  */
 When(/^(I |we )*search (?:the site )?for (?:some )?existing content$/, async function (pronounCase) {
-  const post = await discoverContent(this.launchUrl, '/wp/v2/posts', { per_page: 1, status: 'publish' }, 'published post');
-  const title = (post.title && post.title.rendered) || '';
-  const words = title.split(/\s+/).filter(Boolean);
-  const term = words.find((word) => word.length > 3) || words[0] || title;
-  if (!term) {
-    throw friendly({
-      message: 'Could not derive a search term from the most recent published post.',
-      hint: 'The post title is empty — publish a post with a title, or use "I search the site for \\"term\\"" instead.',
-    });
-  }
-  this.searchTerm = term;
-  await submitSearch(this, term);
+  await openSearchResults(this, await existingContentTerm(this));
 });
 
 /**
- * Assert the search-results template rendered for the expected term — named
- * inline, or taken from whatever a prior search step stashed.
+ * Assert the page offers a search form: the Search block on a block theme,
+ * `searchform` on a classic theme.
+ *
+ * Example #1: Then I should see the search form
+ * Example #2: And we should see a search form
+ * Example #3: Then should see the search form
+ * Example #4: Then I should not see the search form
+ * Example #5: But we should not see a search form
+ *
+ */
+Then(/^(I |we )*should( not)* see (?:a|the) search form$/, async function (pronounCase, notCase) {
+  await expectRendered(this.page.locator(SEARCH_FORM).first(), notCase, {
+    label: 'a search form (a "form[role=search]", ".search-form" or ".wp-block-search" element)',
+    hint: 'Many block themes show the search form only on the search results and 404 templates. Open one of those, or add the Search block to the template.',
+    timeout: budget(this),
+  });
+});
+
+/**
+ * Search through the search form on the current page: the term is typed in
+ * the form's field and the form is submitted. It fails when the page has no
+ * search form.
+ *
+ * Example #1: When I use the search form to search for "hello"
+ * Example #2: When we use the search form to search for "contact"
+ * Example #3: And use the search form to search for "example"
+ * Example #4: When I use the search form to search for "Sample title"
+ * Example #5: And we use the search form to search for "widgets"
+ *
+ */
+When(/^(I |we )*use the search form to search for "([^"]*)?"$/, async function (pronounCase, term) {
+  const form = this.page.locator(SEARCH_FORM).filter({ visible: true }).first();
+  await expectRendered(form, false, {
+    label: 'a search form',
+    hint: 'Open a page that shows one (the search results and 404 pages of a block theme do), or use: When I search the site for "term".',
+    timeout: budget(this),
+  });
+  this.searchTerm = term;
+  const field = form.locator('input[name="s"]').first();
+  await field.fill(term);
+  const before = this.page.url();
+  await Promise.all([
+    this.page.waitForURL((url) => String(url) !== before && url.searchParams.get('s') === term, { timeout: 15000 }).catch(() => {}),
+    field.press('Enter'),
+  ]);
+  await settle(this);
+});
+
+/**
+ * Assert the page is the search results template with at least one match for
+ * the term, named inline or taken from the search before it. The body class is
+ * `search-results`: block themes also list "more posts" under an empty result,
+ * so counting entries could not tell a match from none.
  *
  * Example #1: Then I should see search results for "hello world"
  * Example #2: And we should see search results for that content
@@ -339,245 +345,76 @@ When(/^(I |we )*search (?:the site )?for (?:some )?existing content$/, async fun
  *
  */
 Then(/^(I |we )*should see search results for (?:"([^"]*)?"|(?:that|the) content)$/, async function (pronounCase, term) {
+  await assertSearchPage(this, term, false);
+});
+
+/**
+ * Assert the search found nothing for the term: the results template with
+ * the `search-no-results` body class.
+ *
+ * Example #1: Then I should see no search results for "qzxjvwk"
+ * Example #2: And we should see no search results for that content
+ * Example #3: Then should see no search results for the content
+ * Example #4: And should see no search results for "nothing like this"
+ * Example #5: Then we should see no search results for "zzz"
+ *
+ */
+Then(/^(I |we )*should see no search results for (?:"([^"]*)?"|(?:that|the) content)$/, async function (pronounCase, term) {
+  await assertSearchPage(this, term, true);
+});
+
+async function assertSearchPage(world, term, empty) {
   // An unmatched alternation group arrives as null, not undefined.
-  const expected = term ?? this.searchTerm;
+  const expected = term ?? world.searchTerm;
   if (expected === undefined || expected === null) {
     throw friendly({
       message: 'No search term has been captured yet.',
       hint: 'Run a search step first, or name the term inline: Then I should see search results for "example".',
     });
   }
+  const wanted = empty ? 'search-no-results' : 'search-results';
   try {
-    await this.page.locator('body.search').waitFor({ state: 'attached', timeout: budget(this) });
+    await world.page.locator('body.' + wanted).waitFor({ state: 'attached', timeout: budget(world) });
   } catch (err) {
-    const classAttr = await this.page.locator('body').getAttribute('class').catch(() => '');
+    const classAttr = await world.page.locator('body').getAttribute('class').catch(() => '');
     throw friendly({
-      message: 'Expected the search-results template ("search" body class).',
+      message: empty
+        ? `Expected the search for "${expected}" to find nothing (the "search-no-results" body class).`
+        : `Expected the search for "${expected}" to find something (the "search-results" body class).`,
       cause: `the body class was "${classAttr}"`,
-      hint: 'The theme must call body_class(); a search form posting elsewhere, or a redirect, lands on another template.',
+      hint: 'The theme must call body_class(). A search form that posts elsewhere, or a redirect, lands on another template.',
     });
   }
-  // A space reaches the URL as `+` or `%20` depending on whether the form or a
-  // direct navigation submitted it.
+  // A space reaches the URL as `+` or `%20`, depending on whether the form or
+  // a direct navigation submitted it.
   const encoded = encodeURIComponent(expected);
   const carriesTerm = (url) => url.includes(`s=${encoded.replace(/%20/g, '+')}`) || url.includes(`s=${encoded}`);
   try {
-    await this.page.waitForURL((url) => carriesTerm(String(url)), { timeout: budget(this) });
+    await world.page.waitForURL((url) => carriesTerm(String(url)), { timeout: budget(world) });
   } catch (err) {
     throw friendly({
       message: `Expected the search URL to carry the term "${expected}".`,
-      cause: `the URL was ${this.page.url()}`,
+      cause: `the URL was ${world.page.url()}`,
       hint: 'Run a search step first, or name the same term the search used.',
     });
   }
-});
-
-// ---------------------------------------------------------------------------
-// Authentication
-// ---------------------------------------------------------------------------
-
-// Fills by core CSS id rather than webship-js's `fillField`: the login form has
-// no `<label for>` association and its name attributes ("log", "pwd") don't
-// match the ids, so label/placeholder/name resolution can never find them.
-async function submitLogin(world, username, password) {
-  try {
-    await world.page.locator('#user_login').fill(username);
-    await world.page.locator('#user_pass').fill(password);
-    // Submit from inside the page rather than with a pointer click: a fixed
-    // overlay (a cookie banner, a chat widget) can sit on top of the button and
-    // make a real click wait out its actionability timeout, while the form's
-    // own submit cannot be covered. Wait for the navigation it starts.
-    await Promise.all([
-      world.page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {}),
-      world.page.evaluate(() => {
-        const submit = document.querySelector('#wp-submit');
-        if (submit) { submit.click(); return; }
-        const form = document.querySelector('#loginform') || document.forms[0];
-        if (form) form.submit();
-      }),
-    ]);
-  } catch (err) {
-    throw friendly({
-      message: `Could not submit the login form as "${username}".`,
-      cause: err,
-      hint: 'Open the login page first, and check the site is not fronted by a plugin that replaces the core login screen.',
-    });
-  }
-  await settle(world);
 }
 
 /**
- * Open the core login screen.
+ * Assert a search result lists an entry whose title contains the text.
  *
- * Example #1: Given I am on the login page
- * Example #2: Given we are on the sign in page
- * Example #3: And on the login page
- * Example #4: Given we are on the sign-in page
- * Example #5: And I am on the signin page
- *
- */
-Given(/^(I am |we are )*on the (?:sign[- ]?in|login) page$/, async function (pronounCase) {
-  await gotoUrl(this.page, siteRoot(this.launchUrl) + '/wp-login.php');
-  await this.page.waitForSelector('body', { state: 'attached', timeout: 10000 });
-  await settle(this);
-});
-
-/**
- * Assert the login form, username field and password field are rendered. Each
- * is checked separately so a failure names which one is missing.
- *
- * Example #1: Then I should see the login form
- * Example #2: And we should see the sign in form
- * Example #3: Then should see the sign-in form
- * Example #4: Then I should not see the login form
- * Example #5: But we should not see the sign in form
+ * Example #1: Then the search results should include "Hello world!"
+ * Example #2: And the search results should include "Sample Page"
+ * Example #3: Then the search results should not include "Privacy Policy"
+ * Example #4: But the search results should not include "Draft title"
+ * Example #5: And the search results should include "News"
  *
  */
-Then(/^(I |we )*should( not)* see the (?:sign[- ]?in|login) form$/, async function (pronounCase, notCase) {
-  const hint = 'A security plugin may have moved or replaced the core login screen at /wp-login.php.';
-  await expectRendered(this.page.locator('#loginform'), notCase, { label: 'the login form ("#loginform")', hint });
-  if (notCase) return;
-  await expectRendered(this.page.locator('#user_login'), false, { label: 'the username field ("#user_login")', hint, timeout: 5000 });
-  await expectRendered(this.page.locator('#user_pass'), false, { label: 'the password field ("#user_pass")', hint, timeout: 5000 });
-});
-
-/**
- * Assert the login screen shows, or does not show, its error notice
- * (`#login_error`), optionally containing a text such as "incorrect" or
- * "Unknown username". The notice is what a wrong password, an unknown user or
- * an empty form produces.
- *
- * Example #1: Then I should see a login error
- * Example #2: And we should see a sign-in error message
- * Example #3: Then should see a login error "incorrect"
- * Example #4: Then I should not see a login error
- * Example #5: But we should not see an error message "incorrect"
- *
- */
-Then(/^(I |we )*should( not)* see an? (?:login |sign[- ]?in )?error(?: message)?(?: "([^"]*)")?$/, async function (pronounCase, notCase, expectedText) {
-  const notice = this.page.locator('#login_error').first();
-  const hint = 'The core login screen renders the notice above the form; a security plugin may replace or suppress it.';
-  if (notCase && !expectedText) {
-    await expectRendered(notice, true, { label: 'the login error notice ("#login_error")', hint, timeout: budget(this) });
-    return;
-  }
-  await expectRendered(notice, false, { label: 'the login error notice ("#login_error")', hint, timeout: budget(this) });
-  if (expectedText) {
-    await expectText(notice, expectedText, notCase, { label: 'the login error notice', hint, timeout: budget(this) });
-  }
-});
-
-/**
- * Log in with explicit credentials, for scenarios where the credentials are
- * the subject. Requires the login screen to be open already.
- *
- * Example #1: When I log in as "admin" with password "secret"
- * Example #2: When we sign in as "editor" with password "p@ssw0rd"
- * Example #3: And log in as "author" with password "letmein"
- * Example #4: And we log in as "reviewer" with password "hunter2"
- * Example #5: When I sign in as "admin" with password "wrong-password"
- *
- */
-When(/^(I |we )*(?:log in|sign in) as "([^"]*)?" with password "([^"]*)?"$/, async function (pronounCase, username, password) {
-  await submitLogin(this, username, password);
-});
-
-/**
- * Sign in as a user configured in `worldParameters.users`, so passwords stay
- * out of feature files. Opens the login screen first.
- *
- * Example #1: Given I am a logged in user with the username "admin"
- * Example #2: Given we are a logged in user with username "editor"
- * Example #3: Given I am a logged in user with "author"
- * Example #4: And a logged in user with the username "admin"
- * Example #5: Given I am a logged in user with the username "admin" user
- *
- */
-Given(/^(I am |we are )*a logged in user with( the)*( username)* "([^"]*)?"( user)*$/, async function (pronounCase, theCase, usernameCase, userKey, userCase) {
-  const users = (this.parameters && this.parameters.users) || {};
-  const entry = users[userKey];
-  if (!entry) {
-    throw friendly({
-      message: `User "${userKey}" is not configured.`,
-      hint: `Add it to worldParameters.users in cucumber.js. Known users: ${Object.keys(users).join(', ') || '(none)'}.`,
-    });
-  }
-  const username = entry.username || userKey;
-  const password = typeof entry === 'string' ? entry : entry.password;
-  if (!password) {
-    throw friendly({
-      message: `User "${userKey}" has no password configured.`,
-      hint: 'Set worldParameters.users.' + userKey + '.password in cucumber.js, ideally from an environment variable.',
-    });
-  }
-  await gotoUrl(this.page, siteRoot(this.launchUrl) + '/wp-login.php');
-  await this.page.waitForSelector('#loginform', { state: 'visible', timeout: 10000 });
-  await submitLogin(this, username, password);
-});
-
-/**
- * End any authenticated session and land on the login screen as a visitor:
- * cookies and web storage are cleared, the login page is opened and the core
- * login form is confirmed. Use it at the start of a scenario that must run
- * anonymously after an earlier one logged in, or mid-scenario to check what a
- * visitor gets at a path an authenticated user just saw.
- *
- * Example #1: Given I am not logged in
- * Example #2: Given we are not logged in
- * Example #3: And I am not logged in
- * Example #4: Given not logged in
- * Example #5: But I am not logged in
- *
- */
-Given(/^(I am |we are )*not logged in$/, async function (pronounCase) {
-  await this.context.clearCookies();
-  try {
-    await this.page.evaluate(() => {
-      try { localStorage.clear(); } catch { /* storage may be unavailable */ }
-      try { sessionStorage.clear(); } catch { /* storage may be unavailable */ }
-    });
-  } catch { /* the page may not be on a real URL yet */ }
-  await gotoUrl(this.page, siteRoot(this.launchUrl) + '/wp-login.php');
-  await this.page.waitForSelector('#loginform', { state: 'visible', timeout: 10000 });
-});
-
-/**
- * Assert the admin toolbar is rendered — the cheapest signal that the session
- * is (or is not) authenticated.
- *
- * Example #1: Then I should see the admin bar
- * Example #2: And we should see the admin toolbar
- * Example #3: Then should see the toolbar
- * Example #4: Then I should not see the admin bar
- * Example #5: But we should not see the toolbar
- *
- */
-Then(/^(I |we )*should( not)* see the (?:admin (?:bar|toolbar)|toolbar)$/, async function (pronounCase, notCase) {
-  await expectRendered(this.page.locator('#wpadminbar'), notCase, {
-    label: 'the admin toolbar ("#wpadminbar")',
-    hint: 'The toolbar only renders for an authenticated session that has not disabled it in the user profile.',
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Comments
-// ---------------------------------------------------------------------------
-
-/**
- * Assert the comment form is rendered. Matches on the `.comment-form` class,
- * which is theme-independent — the id is filtered per theme.
- *
- * Example #1: Then I should see the comment form
- * Example #2: And we should see a comment form
- * Example #3: Then should see the comments form
- * Example #4: Then I should not see a comment form
- * Example #5: But we should not see the comment form
- *
- */
-Then(/^(I |we )*should( not)* see (?:a|the) comments? form$/, async function (pronounCase, notCase) {
-  const form = this.page.locator('#commentform, form.comment-form').first();
-  await expectRendered(form, notCase, {
-    label: 'the comment form',
-    hint: 'Comments may be closed on this entry, or disabled site-wide in the discussion settings.',
+Then(/^the search results should( not)* include "([^"]*)"$/, async function (notCase, title) {
+  const entries = this.page.locator('main article, main .wp-block-post, main .post, #main article, #content article').filter({ has: this.page.locator('h1, h2, h3, .entry-title, .wp-block-post-title') });
+  await expectText(entries, title, notCase, {
+    label: 'the search result entries',
+    hint: 'A published post or page whose title contains the text must exist, and the search must reach it. Drafts and private content are not in public search.',
+    timeout: budget(this),
   });
 });
