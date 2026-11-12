@@ -48,3 +48,20 @@ Feature: Comments
     Given I am a logged in user with the "subscriber" user
     When I go to the "Comments" admin screen
     Then I should see the access denied screen
+
+  Scenario: A moderator unapproves a comment and restores it from the trash
+    Given I am a logged in user with the "editor" user
+    And I am on a post
+    When I submit the comment "Webship editor comment D"
+    Then the comment "Webship editor comment D" should be approved
+    When I unapprove the comment "Webship editor comment D"
+    Then the comment "Webship editor comment D" should be pending
+    And the comment "Webship editor comment D" should not be approved
+    When I trash the comment "Webship editor comment D"
+    Then the comment "Webship editor comment D" should be in the trash
+    When I restore the comment "Webship editor comment D"
+    Then the comment "Webship editor comment D" should not be in the trash
+    And the comment "Webship editor comment D" should be pending
+    When I trash the comment "Webship editor comment D"
+    And I delete the comment "Webship editor comment D" permanently
+    Then the comment "Webship editor comment D" should not be in the trash

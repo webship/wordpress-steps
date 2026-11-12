@@ -105,3 +105,9 @@ Feature: Posts and pages in the block editor
     And I write "Never published." in the post content
     Then the editor should offer "Submit for Review"
     And the editor should not offer "Publish"
+
+  Scenario: An editor opens a page in the editor and sees it published
+    Given I am a logged in user with the "editor" user
+    When I open the page "Sample Page" in the editor
+    Then the page should be published in the editor
+    And the editor should offer "Save"

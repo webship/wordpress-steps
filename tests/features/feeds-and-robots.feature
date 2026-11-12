@@ -11,8 +11,10 @@ Feature: Feeds, robots and sitemap
     Then the site feed should be a valid RSS feed with at least 1 item
     And the site feed should list "Hello world!"
 
-  Scenario: The comments feed is valid RSS
+  Scenario: The comments feed is valid RSS and lists the approved comments
     Then the comments feed should be a valid RSS feed
+    And the comments feed should list "A WordPress Commenter"
+    And the comments feed should not list "Webship no such commenter"
 
   Scenario: A category feed is valid RSS
     Then the feed "/category/uncategorized/feed/" should be a valid RSS feed with at least 1 item

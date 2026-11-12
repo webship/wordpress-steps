@@ -74,3 +74,12 @@ Feature: Dashboard and admin menu
     Given I am a logged in user with the "subscriber" user
     Then the admin menu should list "Profile"
     And the admin menu should not list "Posts"
+
+  Scenario: The All Settings screen warns the administrator
+    Given I am on "/wp-admin/options.php"
+    Then I should see a warning notice "direct access to your site settings"
+    And I should not see an error notice
+
+  Scenario: The theme file editor informs the administrator
+    Given I am on "/wp-admin/theme-editor.php"
+    Then I should see an info notice "Did you know?"
