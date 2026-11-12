@@ -192,6 +192,19 @@ function resolveUser(world, handle) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Drop the browser session: the page leaves the current screen first (the
+ * block editor releases the lock it holds on a post when it unloads, and the
+ * request needs the session), then the cookies go.
+ *
+ * @param {object} world
+ * @returns {Promise<void>}
+ */
+async function endSession(world) {
+  try { await world.page.goto('about:blank'); } catch { /* nothing open yet */ }
+  await world.context.clearCookies();
+}
+
+/**
  * Open the core login screen and wait for its form.
  *
  * @param {object} world
@@ -264,6 +277,9 @@ async function submitLogin(world, username, password) {
  */
 async function loginAs(world, handle) {
   const account = resolveUser(world, handle);
+  // A new login replaces the session of an earlier one, so the account is the
+  // one named even when the scenario logged in as another before.
+  await endSession(world);
   await openLogin(world);
   const outcome = await submitLogin(world, account.username, account.password);
   if (!outcome.ok) {
@@ -471,7 +487,91 @@ async function gotoQuery(world, query) {
   return navigate(world, '/?' + query);
 }
 
+// ---------------------------------------------------------------------------
+// The block editor
+// ---------------------------------------------------------------------------
+
+/**
+ * Wait until the block editor of the open screen is ready to type in, and put
+ * its first-run welcome guide away. The editor renders the content in an
+ * iframe (`editor-canvas`), so the title and the blocks are reached through
+ * `editorCanvas`; the toolbar, the sidebar and the publish panel are in the
+ * page.
+ *
+ * @param {object} world
+ * @returns {Promise<void>}
+ */
+async function waitForEditor(world) {
+  const page = world.page;
+  try {
+    await page.waitForFunction(() => {
+      const data = window.wp && window.wp.data;
+      const editor = data && data.select('core/editor');
+      return Boolean(editor && editor.getCurrentPostType && editor.getCurrentPostType());
+    }, null, { timeout: WAIT_TIMEOUT });
+  } catch (err) {
+    throw friendly({
+      message: 'The block editor did not load.',
+      cause: err,
+      hint: 'Open the editor with: Given I am on the new post screen, or When I open the post "..." in the editor. The account must be allowed to edit, and the editor must not be replaced by a plugin.',
+    });
+  }
+  // The welcome guide is a first-run preference, not content.
+  await page.evaluate(() => {
+    try { window.wp.data.dispatch('core/preferences').set('core/edit-post', 'welcomeGuide', false); } catch (e) { /* older editor */ }
+  });
+  const close = page.locator('.components-modal__frame button[aria-label="Close"]');
+  if (await close.count()) await close.first().click().catch(() => {});
+  await editorCanvas(world).locator('.editor-post-title__input').waitFor({ state: 'visible', timeout: WAIT_TIMEOUT });
+}
+
+/**
+ * The editing surface of the block editor: the `editor-canvas` iframe that
+ * holds the title and the blocks.
+ *
+ * @param {object} world
+ * @returns {import('playwright').FrameLocator}
+ */
+function editorCanvas(world) {
+  return world.page.frameLocator('iframe[name="editor-canvas"]');
+}
+
+/**
+ * The saved post the editor holds: id, status, type, link.
+ *
+ * @param {object} world
+ * @returns {Promise<{id: number, status: string, type: string, link: string}>}
+ */
+async function editorPost(world) {
+  return world.page.evaluate(() => {
+    const post = window.wp.data.select('core/editor').getCurrentPost();
+    return { id: post.id, status: post.status, type: post.type, link: post.link };
+  });
+}
+
+/**
+ * Wait until the editor finished saving, and report the saved post.
+ *
+ * @param {object} world
+ * @returns {Promise<{id: number, status: string, type: string, link: string}>}
+ */
+async function waitForEditorSaved(world) {
+  try {
+    await world.page.waitForFunction(() => {
+      const editor = window.wp.data.select('core/editor');
+      return !editor.isSavingPost() && !editor.isAutosavingPost() && Boolean(editor.getCurrentPost().id);
+    }, null, { timeout: WAIT_TIMEOUT });
+  } catch (err) {
+    throw friendly({ message: 'The editor did not finish saving.', cause: err, hint: 'Check the page for a save error notice.' });
+  }
+  return editorPost(world);
+}
+
 module.exports = {
+  waitForEditor,
+  editorCanvas,
+  editorPost,
+  waitForEditorSaved,
   WAIT_TIMEOUT,
   ADMIN_SCREENS,
   supplied,
@@ -484,6 +584,7 @@ module.exports = {
   expectText,
   expectRendered,
   resolveUser,
+  endSession,
   openLogin,
   submitLogin,
   loginAs,

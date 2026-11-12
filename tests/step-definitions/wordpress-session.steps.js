@@ -16,6 +16,7 @@ const {
   expectText,
   expectRendered,
   resolveUser,
+  endSession,
   openLogin,
   submitLogin,
   loginAs,
@@ -229,13 +230,13 @@ Given(/^(I am |we are )*a logged in user with( the)*( username)* "([^"]*)?"( use
  *
  */
 Given(/^(I am |we are )*not logged in$/, async function (pronounCase) {
-  await this.context.clearCookies();
   try {
     await this.page.evaluate(() => {
       try { localStorage.clear(); } catch { /* storage may be unavailable */ }
       try { sessionStorage.clear(); } catch { /* storage may be unavailable */ }
     });
   } catch { /* the page may not be on a real URL yet */ }
+  await endSession(this);
   this.currentUserHandle = null;
   await openLogin(this);
 });
