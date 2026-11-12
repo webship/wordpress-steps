@@ -1,7 +1,7 @@
 {
   "name": "@webship-js/wordpress-steps",
   "version": "2.0.1",
-  "description": "WordPress-specific Cucumber step definitions plugin for webship-js — BDD testing for the main pages of any WordPress site (Playwright + Cucumber).",
+  "description": "WordPress step definitions for webship-js (Playwright and Cucumber): sessions and roles, the administration area, the block editor, comments, search, the REST API, feeds and accessibility.",
   "main": "tests/step-definitions/wordpress.steps.js",
   "files": [
     "tests/step-definitions/",

@@ -9,7 +9,7 @@ Feature: Single posts
     And "body" should have class "single"
     And I should see the post title
 
-  # Assumes comments are open on the most recent post — true for the default
+  # Assumes comments are open on the most recent post, which is true for the default
   # "Hello world!" post. Drop this scenario if the site closes comments.
   Scenario: A post with open comments invites a visitor to reply
     Given I am on a post

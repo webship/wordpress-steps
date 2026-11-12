@@ -11,6 +11,11 @@
 // This pack's step files, by area:
 //   wordpress.steps.js           the public site: layout, content, search
 //   wordpress-session.steps.js   login, logout, accounts and roles
+//   wordpress-admin.steps.js     the administration area, settings, Site Health
+//   wordpress-content.steps.js   the block editor, lists, categories, tags, media
+//   wordpress-comments.steps.js  comments and moderation
+//   wordpress-site.steps.js      navigation, blocks, the page head
+//   wordpress-api.steps.js       the REST API, feeds, robots.txt, the sitemap
 //   wordpress-helpers.js         shared helpers, no steps
 
 const { Given, When, Then } = require('@cucumber/cucumber');

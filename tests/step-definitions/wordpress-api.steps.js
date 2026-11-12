@@ -93,7 +93,9 @@ Then(/^the REST route "([^"]*)" should( not)* require authentication$/, async fu
         ? `Expected the REST route "${route}" to be public.`
         : `Expected the REST route "${route}" to require authentication.`,
       cause: `it answered ${result.status}${result.json && result.json.code ? ` (${result.json.code})` : ''}`,
-      hint: notCase ? 'Run it as a visitor: Given I am an anonymous user.' : 'Run it as a visitor: Given I am an anonymous user. A logged-in session is authenticated.',
+      hint: notCase
+        ? 'The route answered 401 or 403 to this session. A public route answers a visitor with 200.'
+        : 'Run it as a visitor: Given I am an anonymous user. A logged-in session is authenticated, so the route answers it.',
     });
   }
 });
