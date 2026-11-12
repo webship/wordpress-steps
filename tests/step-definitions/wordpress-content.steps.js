@@ -682,7 +682,7 @@ async function openMediaList(world, title) {
  * Example #2: And the media library should list "test-document"
  * Example #3: Then the media library should not list "deleted-file"
  * Example #4: And the media library should not list "no-such-file"
- * Example #5: Then the media library should list "webshipco"
+ * Example #5: And the media library should list "photo"
  *
  */
 Then(/^the media library should( not)* list "([^"]*)"$/, async function (notCase, title) {
