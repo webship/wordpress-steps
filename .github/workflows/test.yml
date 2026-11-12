@@ -37,12 +37,10 @@ jobs:
 
       - name: Build a default WordPress site with DDEV
         run: |
-          # A plain `wp core install` — no theme, no permalink structure, no
-          # menu, no widget setup. tests/features/*.feature discover real
-          # content (a page, a post, a category) via the REST API at runtime
-          # and don't assume any particular markup beyond what WordPress core
-          # itself always renders, so this same untouched default install
-          # works whether the active theme is classic or block-based.
+          # A plain `wp core install`: the default theme, no menu and no
+          # widget setup. The features find real content (a page, a post, a
+          # category) through the REST API at run time and name the content
+          # of a default install ("Hello world!", "Sample Page").
           ddev config --project-type=wordpress --project-name=wordpress-steps --docroot=web --create-docroot
           ddev start
           ddev wp core download --path=web
@@ -63,12 +61,11 @@ jobs:
             ddev wp user create "$role" "$role@example.com" --role="$role" --user_pass="$role" --path=web
           done
 
-          # Recent WordPress versions auto-enable a pretty permalink
-          # structure on fresh installs when the server advertises rewrite
-          # support, but `wp core install` doesn't always leave every rewrite
-          # rule (e.g. taxonomy archives) actually wired up server-side. A
-          # flush regenerates them from whatever structure the install
-          # already chose — it doesn't set or change the structure itself.
+          # A new install chooses a pretty permalink structure when the
+          # server supports rewrites, but `wp core install` does not always
+          # write every rewrite rule (taxonomy archives, for example). A
+          # flush writes them again from the structure the install chose;
+          # it does not change the structure.
           ddev wp rewrite flush --hard --path=web
 
           # The stock DDEV nginx configuration answers /robots.txt itself (404)

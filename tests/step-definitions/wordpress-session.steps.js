@@ -306,7 +306,7 @@ Then(/^(I |we )*should( not)* be logged in(?: as the "([^"]*)" user)?$/, async f
   if (!loggedIn) {
     throw friendly({
       message: 'Expected the session to be logged in, but it is anonymous.',
-      hint: 'Run "Given I am a logged in user with the \\"admin\\" user" first.',
+      hint: 'Log in first: Given I am a logged in user with the "admin" user.',
     });
   }
   if (supplied(handle)) {

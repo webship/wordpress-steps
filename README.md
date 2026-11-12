@@ -12,7 +12,7 @@ It is a **plugin for webship-js** and does not run on its own. You add it to a w
 
 The pack's own suite runs against a real WordPress site in CI (built with [DDEV](https://ddev.com/)) and was developed against WordPress 7.1 with the Twenty Twenty-Five block theme. The steps cover block themes and classic themes where the markup is shared; steps that exist only in a block theme (template parts, the Site Editor) say so in their documentation.
 
-## What's covered
+## What is covered
 
 - **The public site:** front page, pages, posts, category archives, the 404 page, the site title and the comment form.
 - **Search:** open the results for a term, use the search form, assert that results exist or that none were found, and that a result lists an entry.
@@ -62,7 +62,7 @@ module.exports = {
 };
 ```
 
-This repo's own [`tests/features/`](tests/features/) directory doubles as a working reference project for the `cucumber.js` setup above.
+This repository's own [`tests/features/`](tests/features/) directory is a working reference project for the `cucumber.js` setup above.
 
 ## Quick example
 
@@ -95,9 +95,9 @@ And I should be on the "Dashboard" admin screen
 
 This repository's `cucumber.js` registers `admin`, `editor`, `author`, `contributor` and `subscriber`. Each account name and password defaults to the handle and is overridden by `WP_<HANDLE>_USER` and `WP_<HANDLE>_PASSWORD`, for example `WP_ADMIN_USER=webmaster`. Accounts are configuration: create them once on the site, for example `wp user create editor editor@example.com --role=editor --user_pass=editor`. A feature never creates or deletes an account.
 
-## Running this repo's own test suite
+## Running this repository's own test suite
 
-This repository is itself a working webship-js project — its `tests/features/*.feature` files run against whatever WordPress site `LAUNCH_URL` points to.
+This repository is itself a working webship-js project: its `tests/features/*.feature` files run against the WordPress site `LAUNCH_URL` points to. The features name the content of a default install ("Hello world!", "Sample Page") and the five accounts of the users registry.
 
 ```bash
 npm install
@@ -105,7 +105,7 @@ npx playwright install --with-deps chromium
 LAUNCH_URL=https://your-site.example npm test   # runs against your own site
 ```
 
-CI (`.github/workflows/test.yml`) doesn't depend on an external site: it spins up a default WordPress install on the runner with [DDEV](https://ddev.com/) and runs the suite against that. To do the same locally:
+CI (`.github/workflows/test.yml`) does not depend on an external site: it builds a default WordPress install on the runner with [DDEV](https://ddev.com/) and runs the suite against it. To do the same locally:
 
 ```bash
 ddev config --project-type=wordpress --project-name=wordpress-steps --docroot=web --create-docroot
@@ -131,10 +131,16 @@ Other scripts:
 | Script | Effect |
 | --- | --- |
 | `npm test` | Full suite, pretty output |
-| `npm run test:dry` | `--dry-run` — checks for undefined/ambiguous steps only |
+| `npm run test:dry` | `--dry-run`: checks for undefined and ambiguous steps only |
 | `npm run test:examples` | No browser: every step's JSDoc carries five `Example #n:` lines that match its own definition and no other, and every feature step resolves to exactly one definition (also runs in CI) |
 | `npm run test:headed` | Headed browser |
 | `npm run test:chromium` / `test:firefox` / `test:webkit` | Pick a browser |
+
+### Lanes, subsets and the settings webship-js reads
+
+- `FEATURES=tests/features/a.feature,tests/features/b.feature npm test` runs a subset of the feature files; `CUCUMBER_TAGS=@critical npm test` runs a tag lane (the default run leaves `@wip` out).
+- `cucumber.js` carries the `video` block (`WEBSHIP_VIDEO=on-failure` records the browser) and the `javascript` block (`WEBSHIP_JS_ERROR_MODE=fail` fails a scenario on a JavaScript error; `@js-off` silences one scenario) that webship-js reads.
+- The step timeout is webship-js's own (45 seconds, set when it loads); `WEBSHIP_STEP_TIMEOUT=<milliseconds>` changes it, a `timeout` key in `cucumber.js` does not.
 
 ## Contributing
 
@@ -142,10 +148,4 @@ Issues and pull requests are tracked on GitHub. `2.0.x` is the repository's sing
 
 ## License
 
-MIT © Webship.co — see [LICENSE](LICENSE).
-
-### Lanes, subsets and the settings webship-js reads
-
-- `FEATURES=tests/features/a.feature,tests/features/b.feature npm test` runs a subset of the feature files; `CUCUMBER_TAGS=@critical npm test` runs a tag lane (the default run leaves `@wip` out).
-- `cucumber.js` carries the `video` block (`WEBSHIP_VIDEO=on-failure` records the browser) and the `javascript` block (`WEBSHIP_JS_ERROR_MODE=fail` fails a scenario on a JavaScript error; `@js-off` silences one scenario) that webship-js reads.
-- The step timeout is webship-js's own (45 seconds, set when it loads); `WEBSHIP_STEP_TIMEOUT=<milliseconds>` changes it, a `timeout` key in `cucumber.js` does not.
+MIT © Webship.co. See [LICENSE](LICENSE).
