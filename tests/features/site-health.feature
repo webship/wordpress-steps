@@ -17,7 +17,7 @@ Feature: Site Health and cron
     Then the site health test "Search engine indexing is enabled." should pass
 
   Scenario: The cron endpoint answers without error
-    Then the WordPress cron should respond
+    Then the cron should respond
 
   Scenario: Site Health recommends removing what a default install leaves inactive
     When I go to the "Site Health" admin screen
