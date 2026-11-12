@@ -115,7 +115,7 @@ async function expectText(locator, expectedText, notCase, { label, hint, timeout
   try {
     await withText.first().waitFor({ state: notCase ? 'detached' : 'attached', timeout });
   } catch (err) {
-    const text = ((await locator.textContent({ timeout: 1000 }).catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+    const text = ((await locator.allTextContents().catch(() => [])).join(' | ')).replace(/\s+/g, ' ').trim();
     throw friendly({
       message: notCase
         ? `Expected ${label} not to contain "${expectedText}".`
@@ -147,7 +147,7 @@ async function expectRendered(locator, notCase, { label, hint, presenceOnly = fa
       message: notCase
         ? `Expected ${label} to be gone from the page, but it is still there.`
         : `Expected ${label} to be on the page, but it was not found in time.`,
-      cause: err,
+      cause: err && err.name === 'TimeoutError' ? undefined : err,
       hint,
     });
   }

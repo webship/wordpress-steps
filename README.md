@@ -14,8 +14,9 @@ It is a **plugin for webship-js** — it does not run standalone. It ships one f
 - **Search:** open the results for a term, use the search form, assert that results exist or that none were found, and that a result lists an entry.
 - **Sessions and accounts:** the login screen and its error and message notices, login by a handle from the users registry (no password in a feature file), explicit credentials, logout the way a user does, the lost password screen, "logged in as" checked on the server, the account's role, and the admin bar.
 - **Roles and screens:** the administration screens by name (`Given I am on the "Plugins" admin screen`), the landing screen of each role, and the access denied screen a role without the capability gets.
+- **The administration area:** the dashboard and its widgets, the admin menu and its submenus, the admin bar, notices (success, error, warning, info), the plugins and themes screens (installed, active, activate and deactivate a plugin, block or classic theme), settings (site title and any labelled setting, the permalink structure), Site Health tests, and the cron endpoint.
 
-Each step is documented with a JSDoc block and Gherkin examples in [`tests/step-definitions/`](tests/step-definitions/): `wordpress.steps.js` (the public site), `wordpress-session.steps.js` (sessions, accounts, roles) and `wordpress-helpers.js` (shared helpers, no steps).
+Each step is documented with a JSDoc block and Gherkin examples in [`tests/step-definitions/`](tests/step-definitions/): `wordpress.steps.js` (the public site), `wordpress-session.steps.js` (sessions, accounts, roles), `wordpress-admin.steps.js` (the administration area) and `wordpress-helpers.js` (shared helpers, no steps).
 
 ## Requirements
 
