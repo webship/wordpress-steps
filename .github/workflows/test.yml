@@ -71,6 +71,12 @@ jobs:
           # already chose — it doesn't set or change the structure itself.
           ddev wp rewrite flush --hard --path=web
 
+          # The stock DDEV nginx configuration answers /robots.txt itself (404)
+          # instead of passing it to WordPress, so write the file WordPress
+          # generates; a production site serves the same text from a file or
+          # from WordPress. The robots.txt steps then have a real answer.
+          curl -fsSk "https://wordpress-steps.ddev.site/?robots=1" -o web/robots.txt
+
       - name: Check the step examples and feature steps against the definitions
         run: npm run test:examples
 

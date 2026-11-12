@@ -2,11 +2,15 @@
 
 [![Test](https://github.com/webship/wordpress-steps/actions/workflows/test.yml/badge.svg)](https://github.com/webship/wordpress-steps/actions/workflows/test.yml)
 
-WordPress-specific Cucumber step definitions for [webship-js](https://www.npmjs.com/package/webship-js) — a Playwright + Cucumber BDD testing framework. `@webship-js/wordpress-steps` adds a `wordpress.steps.js` step-pack that understands WordPress's own markup conventions (`#wpadminbar`, `#loginform`, `.site-title`, comment forms, search) and discovers real content through the REST API, so you can write readable Gherkin scenarios against the main pages of any WordPress site without hand-rolling CSS selectors or hard-coding slugs.
+WordPress step definitions for [webship-js](https://www.npmjs.com/package/webship-js), the Playwright and Cucumber framework for behaviour-driven testing. `@webship-js/wordpress-steps` lets a tester write readable Gherkin scenarios for a WordPress site: sessions and roles, the administration area, content in the block editor, comments, search, the REST API, feeds and accessibility. The steps know WordPress's own markup (`#wpadminbar`, `#loginform`, `#adminmenu`, the block editor, `.wp-block-*`) and find real content through the REST API, so a scenario names no CSS selector and no slug.
 
-The pack stays deliberately small: anything webship-js already covers — body classes, landmarks, status codes, element assertions — is used from the core pack rather than redefined here.
+Anything webship-js already covers (body classes, landmarks, status codes, element assertions, accessibility audits) is used from webship-js and not redefined here.
 
-It is a **plugin for webship-js** — it does not run standalone. It ships one file of step definitions plus example `.feature` files; you drop it into an existing (or new) webship-js test project.
+It is a **plugin for webship-js** and does not run on its own. You add it to a webship-js test project.
+
+### Tested against
+
+The pack's own suite runs against a real WordPress site in CI (built with [DDEV](https://ddev.com/)) and was developed against WordPress 7.1 with the Twenty Twenty-Five block theme. The steps cover block themes and classic themes where the markup is shared; steps that exist only in a block theme (template parts, the Site Editor) say so in their documentation.
 
 ## What's covered
 
@@ -16,8 +20,12 @@ It is a **plugin for webship-js** — it does not run standalone. It ships one f
 - **Roles and screens:** the administration screens by name (`Given I am on the "Plugins" admin screen`), the landing screen of each role, and the access denied screen a role without the capability gets.
 - **The administration area:** the dashboard and its widgets, the admin menu and its submenus, the admin bar, notices (success, error, warning, info), the plugins and themes screens (installed, active, activate and deactivate a plugin, block or classic theme), settings (site title and any labelled setting, the permalink structure), Site Health tests, and the cron endpoint.
 - **Content in the block editor:** new post or page, open an entry by title, set the title, write a paragraph, publish, update, save a draft, submit for review (contributor), move to the trash, restore, delete permanently, the status of an entry, what the editor offers each role; categories and tags (add, delete, file a post, tag a post, assert on the public post); the media library (upload, list, delete).
+- **Comments:** submit a comment (visitor or logged in), see it awaiting moderation, approve, unapprove, trash, mark as spam, restore and delete it on the Comments screen, and assert the status of a comment.
+- **The theme:** the navigation menu (list, open, the mobile menu), core blocks by name, the header and footer template parts, the REST API and feed links in the page head.
+- **The machine-readable site:** the REST API (available, status, requires authentication, refused, list, a value), the RSS feeds, `robots.txt` and the XML sitemap.
+- **Accessibility:** a feature that audits the front page, a post, the login page and the 404 page with webship-js's axe steps.
 
-Each step is documented with a JSDoc block and Gherkin examples in [`tests/step-definitions/`](tests/step-definitions/): `wordpress.steps.js` (the public site), `wordpress-session.steps.js` (sessions, accounts, roles), `wordpress-admin.steps.js` (the administration area), `wordpress-content.steps.js` (the block editor, lists, categories, tags and media) and `wordpress-helpers.js` (shared helpers, no steps).
+Each step is documented with a JSDoc block and Gherkin examples in [`tests/step-definitions/`](tests/step-definitions/): `wordpress.steps.js` (the public site), `wordpress-session.steps.js` (sessions, accounts, roles), `wordpress-admin.steps.js` (the administration area), `wordpress-content.steps.js` (the block editor, lists, categories, tags and media), `wordpress-comments.steps.js` (comments and moderation), `wordpress-site.steps.js` (navigation, blocks, the page head), `wordpress-api.steps.js` (REST, feeds, robots, sitemap) and `wordpress-helpers.js` (shared helpers, no steps).
 
 ## Requirements
 
@@ -110,6 +118,10 @@ ddev wp core install --path=web --url="https://wordpress-steps.ddev.site" \
 for role in editor author contributor subscriber; do
   ddev wp user create "$role" "$role@example.com" --role="$role" --user_pass="$role" --path=web
 done
+
+# The stock DDEV nginx configuration answers /robots.txt with a 404 instead of
+# passing it to WordPress; write the file WordPress generates for the robots.txt steps.
+curl -sk "https://wordpress-steps.ddev.site/?robots=1" -o web/robots.txt
 
 LAUNCH_URL=https://wordpress-steps.ddev.site npm test
 ```
