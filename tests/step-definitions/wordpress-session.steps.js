@@ -2,8 +2,8 @@
 
 // WordPress step definitions for webship-js: sessions and accounts.
 //
-// Login by handle from `worldParameters.users` (no password in a feature file),
-// logout, the login screen and its notices, the account's role, and the
+// Login by handle from `worldParameters.users` (no password in a feature file)
+// and by credentials, the login screen and its notices, logout, the account's role, and the
 // administration screens a role lands on or is refused.
 
 const { Given, When, Then } = require('@cucumber/cucumber');
@@ -25,6 +25,61 @@ const {
   restRequest,
   supplied,
 } = require('./wordpress-helpers');
+
+// ---------------------------------------------------------------------------
+// Logging in
+// ---------------------------------------------------------------------------
+
+/**
+ * Log in as an account from the users registry, `worldParameters.users` in
+ * `cucumber.js`, so no password appears in a feature file. The handle is the
+ * registry key ("admin", "editor", "author", "contributor", "subscriber"). It
+ * opens the login screen, submits the form and fails with the screen's own
+ * message when WordPress refuses the credentials.
+ *
+ * Example #1: Given I am a logged in user with the "admin" user
+ * Example #2: Given we are a logged in user with username "editor"
+ * Example #3: Given I am a logged in user with "author"
+ * Example #4: And a logged in user with the username "admin"
+ * Example #5: Given I am a logged in user with the username "subscriber" user
+ *
+ */
+Given(/^(I am |we are )*a logged in user with( the)*( username)* "([^"]*)?"( user)*$/, async function (pronounCase, theCase, usernameCase, handle, userCase) {
+  this.currentUserHandle = handle;
+  await loginAs(this, handle);
+});
+
+/**
+ * Log in with explicit credentials, for scenarios where the credentials are
+ * the subject. The login screen must be open already.
+ *
+ * Example #1: When I log in as "admin" with password "secret"
+ * Example #2: When we sign in as "editor" with password "p@ssw0rd"
+ * Example #3: And log in as "author" with password "letmein"
+ * Example #4: And we log in as "reviewer" with password "hunter2"
+ * Example #5: When I sign in as "admin" with password "wrong-password"
+ *
+ */
+When(/^(I |we )*(?:log in|sign in) as "([^"]*)?" with password "([^"]*)?"$/, async function (pronounCase, username, password) {
+  await submitLogin(this, username || '', password || '');
+});
+
+/**
+ * Log in as a configured account, with another password: the handle gives the
+ * username, so the feature file names no account either. The login screen must
+ * be open already. Use it for a wrong password.
+ *
+ * Example #1: When I log in as the "admin" user with password "not-the-password"
+ * Example #2: When we sign in as the "editor" user with password "wrong"
+ * Example #3: And log in as the "subscriber" user with password "wrong-password"
+ * Example #4: When I log in as the "author" user with password ""
+ * Example #5: And we sign in as the "contributor" user with password "nope"
+ *
+ */
+When(/^(I |we )*(?:log in|sign in) as the "([^"]*)" user with password "([^"]*)?"$/, async function (pronounCase, handle, password) {
+  const account = resolveUser(this, handle);
+  await submitLogin(this, account.username, password || '');
+});
 
 // ---------------------------------------------------------------------------
 // The login screen
@@ -115,38 +170,6 @@ Then(/^(I |we )*should( not)* see an? (?:login|sign[- ]?in) message(?: "([^"]*)"
 });
 
 /**
- * Log in with explicit credentials, for scenarios where the credentials are
- * the subject. The login screen must be open already.
- *
- * Example #1: When I log in as "admin" with password "secret"
- * Example #2: When we sign in as "editor" with password "p@ssw0rd"
- * Example #3: And log in as "author" with password "letmein"
- * Example #4: And we log in as "reviewer" with password "hunter2"
- * Example #5: When I sign in as "admin" with password "wrong-password"
- *
- */
-When(/^(I |we )*(?:log in|sign in) as "([^"]*)?" with password "([^"]*)?"$/, async function (pronounCase, username, password) {
-  await submitLogin(this, username || '', password || '');
-});
-
-/**
- * Log in as a configured account, with another password: the handle gives the
- * username, so the feature file names no account either. The login screen must
- * be open already. Use it for a wrong password.
- *
- * Example #1: When I log in as the "admin" user with password "not-the-password"
- * Example #2: When we sign in as the "editor" user with password "wrong"
- * Example #3: And log in as the "subscriber" user with password "wrong-password"
- * Example #4: When I log in as the "author" user with password ""
- * Example #5: And we sign in as the "contributor" user with password "nope"
- *
- */
-When(/^(I |we )*(?:log in|sign in) as the "([^"]*)" user with password "([^"]*)?"$/, async function (pronounCase, handle, password) {
-  const account = resolveUser(this, handle);
-  await submitLogin(this, account.username, password || '');
-});
-
-/**
  * Open the lost password screen.
  *
  * Example #1: Given I am on the lost password page
@@ -195,25 +218,6 @@ When(/^(I |we )*request a password reset for the "([^"]*)" user$/, async functio
 // ---------------------------------------------------------------------------
 // Sessions
 // ---------------------------------------------------------------------------
-
-/**
- * Log in as an account from the users registry, `worldParameters.users` in
- * `cucumber.js`, so no password appears in a feature file. The handle is the
- * registry key ("admin", "editor", "author", "contributor", "subscriber"). It
- * opens the login screen, submits the form and fails with the screen's own
- * message when WordPress refuses the credentials.
- *
- * Example #1: Given I am a logged in user with the "admin" user
- * Example #2: Given we are a logged in user with username "editor"
- * Example #3: Given I am a logged in user with "author"
- * Example #4: And a logged in user with the username "admin"
- * Example #5: Given I am a logged in user with the username "subscriber" user
- *
- */
-Given(/^(I am |we are )*a logged in user with( the)*( username)* "([^"]*)?"( user)*$/, async function (pronounCase, theCase, usernameCase, handle, userCase) {
-  this.currentUserHandle = handle;
-  await loginAs(this, handle);
-});
 
 /**
  * End any authenticated session and land on the login screen as a visitor:

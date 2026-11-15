@@ -16,9 +16,9 @@ The pack's own suite runs against a real WordPress site in CI (built with [DDEV]
 
 ## What is covered
 
+- **Sessions and accounts:** login by a handle from the users registry (no password in a feature file), explicit credentials, the login screen and its error and message notices, logout the way a user does, the lost password screen, "logged in as" checked on the server, the account's role, and the admin bar.
 - **The public site:** front page, pages, posts, category archives, the 404 page, the site title and the comment form.
 - **Search:** open the results for a term, use the search form, assert that results exist or that none were found, and that a result lists an entry.
-- **Sessions and accounts:** the login screen and its error and message notices, login by a handle from the users registry (no password in a feature file), explicit credentials, logout the way a user does, the lost password screen, "logged in as" checked on the server, the account's role, and the admin bar.
 - **Roles and screens:** the administration screens by name (`Given I am on the "Plugins" admin screen`), the landing screen of each role, and the access denied screen a role without the capability gets.
 - **The administration area:** the dashboard and its widgets, the admin menu and its submenus, the admin bar, notices (success, error, warning, info), the plugins and themes screens (installed, active, activate and deactivate a plugin, block or classic theme), settings (site title and any labelled setting, the permalink structure), Site Health tests, and the cron endpoint.
 - **Content in the block editor:** new post or page, open an entry by title, set the title, write a paragraph, publish, update, save a draft, submit for review (contributor), move to the trash, restore, delete permanently, the status of an entry, what the editor offers each role; categories and tags (add, delete, file a post, tag a post, assert on the public post); the media library (upload, list, delete).
@@ -27,7 +27,7 @@ The pack's own suite runs against a real WordPress site in CI (built with [DDEV]
 - **The machine-readable site:** the REST API (available, status, requires authentication, refused, list, a value), the RSS and Atom feeds, `robots.txt` and the XML sitemap.
 - **Accessibility:** a feature that audits the front page, a post, the login page and the 404 page with webship-js's axe steps.
 
-Each step is documented with a JSDoc block and Gherkin examples in [`tests/step-definitions/`](tests/step-definitions/): `wordpress.steps.js` (the public site), `wordpress-session.steps.js` (sessions, accounts, roles), `wordpress-admin.steps.js` (the administration area), `wordpress-content.steps.js` (the block editor, lists, categories, tags and media), `wordpress-comments.steps.js` (comments and moderation), `wordpress-site.steps.js` (navigation, blocks, the page head), `wordpress-api.steps.js` (REST, feeds, robots, sitemap) and `wordpress-helpers.js` (shared helpers, no steps).
+Each step is documented with a JSDoc block and Gherkin examples in [`tests/step-definitions/`](tests/step-definitions/): `wordpress-session.steps.js` (sessions, accounts, roles), `wordpress.steps.js` (the public site), `wordpress-admin.steps.js` (the administration area), `wordpress-content.steps.js` (the block editor, lists, categories, tags and media), `wordpress-comments.steps.js` (comments and moderation), `wordpress-site.steps.js` (navigation, blocks, the page head), `wordpress-api.steps.js` (REST, feeds, robots, sitemap) and `wordpress-helpers.js` (shared helpers, no steps).
 
 ## Requirements
 
@@ -67,6 +67,18 @@ module.exports = {
 This repository's own [`tests/features/`](tests/features/) directory is a working reference project for the `cucumber.js` setup above.
 
 ## Quick example
+
+```gherkin
+Feature: The administration area
+
+  Scenario: An editor sees a smaller admin menu
+    Given I am a logged in user with the "editor" user
+    When I go to the "Dashboard" admin screen
+    Then the admin menu should list "Posts"
+    And the admin menu should not list "Plugins"
+```
+
+The scenario logs in by a handle of the users registry (see [Accounts](#accounts)), so no password is in the feature file.
 
 ```gherkin
 Feature: Homepage
