@@ -1,3 +1,5 @@
+<p align="center"><img src="https://raw.githubusercontent.com/webship/wordpress-steps/2.0.x/assets/logo.svg" alt="WordPress logo" width="96"></p>
+
 # wordpress-steps
 
 [![Test](https://github.com/webship/wordpress-steps/actions/workflows/test.yml/badge.svg)](https://github.com/webship/wordpress-steps/actions/workflows/test.yml)
@@ -149,3 +151,7 @@ Issues and pull requests are tracked on GitHub. `2.0.x` is the repository's sing
 ## License
 
 MIT © Webship.co. See [LICENSE](LICENSE).
+
+## Logo
+
+The WordPress logo in this README comes from Simple Icons 16.37.0 (CC0-1.0), filled with the colour the set lists for the brand. The WordPress name and logo are trademarks of their owner; this pack is not affiliated with or endorsed by them.
