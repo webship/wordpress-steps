@@ -9,6 +9,14 @@ Feature: Single posts
     And "body" should have class "single"
     And I should see the post title
 
+  # The title of an entry counts only as a heading of its own page: the front
+  # page lists the post among the latest posts, not as its heading.
+  Scenario: The front page lists a post but is not headed by it
+    Given I am on a post
+    When I go to the homepage
+    Then I should not see the post title
+    And I should see "Hello world!"
+
   # Assumes comments are open on the most recent post, which is true for the default
   # "Hello world!" post. Drop this scenario if the site closes comments.
   Scenario: A post with open comments invites a visitor to reply

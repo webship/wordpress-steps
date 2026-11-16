@@ -8,7 +8,8 @@ Feature: Posts and pages in the block editor
     And I am on the new post screen
     When I set the post title to "Webship lifecycle post"
     And I write "First paragraph of the lifecycle post." in the post content
-    And I publish the post
+    Then I should not see the editor notice "Post published."
+    When I publish the post
     Then I should see the editor notice "Post published."
     And the post should be published in the editor
     When I view the post
