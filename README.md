@@ -109,6 +109,20 @@ And I should be on the "Dashboard" admin screen
 
 This repository's `cucumber.js` registers `admin`, `editor`, `author`, `contributor` and `subscriber`. Each account name and password defaults to the handle and is overridden by `WP_<HANDLE>_USER` and `WP_<HANDLE>_PASSWORD`, for example `WP_ADMIN_USER=webmaster`. Accounts are configuration: create them once on the site, for example `wp user create editor editor@example.com --role=editor --user_pass=editor`. A feature never creates or deletes an account.
 
+## Test users
+
+The accounts this repository's suite logs in as, exactly as `cucumber.js` lists them in `worldParameters.users` (the default values; each one can be replaced through `WP_<HANDLE>_USER` and `WP_<HANDLE>_PASSWORD`). `wp core install` creates `admin` (an administrator) and `wp user create` the four others, each with the role of the same name: CI does it on the runner, and the commands under [Running this repository's own test suite](#running-this-repositorys-own-test-suite) do it locally. They are placeholder credentials of that throwaway site, not of any real one.
+
+```json
+{
+  "admin": { "username": "admin", "password": "admin" },
+  "editor": { "username": "editor", "password": "editor" },
+  "author": { "username": "author", "password": "author" },
+  "contributor": { "username": "contributor", "password": "contributor" },
+  "subscriber": { "username": "subscriber", "password": "subscriber" }
+}
+```
+
 ## Running this repository's own test suite
 
 This repository is itself a working webship-js project: its `tests/features/*.feature` files run against the WordPress site `LAUNCH_URL` points to. The features name the content of a default install ("Hello world!", "Sample Page") and the five accounts of the users registry.
