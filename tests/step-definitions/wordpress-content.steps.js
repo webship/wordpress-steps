@@ -597,9 +597,22 @@ When(/^(I |we )*tag the post with "([^"]*)"$/, async function (pronounCase, name
   await this.page.keyboard.press('Enter');
 });
 
+// The term links of the post on the public site, per kind. A block theme
+// renders each taxonomy in its own Post Terms block (`.taxonomy-category`,
+// `.taxonomy-post_tag`) and gives every term link `rel="tag"`, categories
+// included; a classic theme marks category links `rel="category tag"` and tag
+// links `rel="tag"`. So a link is a tag only outside the category block and
+// without `rel="category"`.
+const TERM_LINKS = {
+  category: '.wp-block-post-terms.taxonomy-category a, main a[rel~="category"], .entry-meta a[rel~="category"]',
+  tag: '.wp-block-post-terms.taxonomy-post_tag a, main a[rel~="tag"]:not([rel~="category"]):not(.wp-block-post-terms a), .entry-meta a[rel~="tag"]:not([rel~="category"])',
+};
+
 /**
- * Assert the post on the public site lists a category or a tag, by name, the
- * links a theme renders with `rel="category"` and `rel="tag"`.
+ * Assert the post on the public site lists a category or a tag, by name: the
+ * links of the theme's category list and of its tag list, told apart (a block
+ * theme's Post Terms block of each taxonomy, a classic theme's `rel="category"`
+ * and `rel="tag"` links).
  *
  * Example #1: Then the post should be in the category "Reports"
  * Example #2: And the post should be in the tag "webship"
@@ -609,7 +622,7 @@ When(/^(I |we )*tag the post with "([^"]*)"$/, async function (pronounCase, name
  *
  */
 Then(/^the post should( not)* be in the (category|tag) "([^"]*)"$/, async function (notCase, kind, name) {
-  const links = this.page.locator(`main a[rel~="${kind}"], .entry-meta a[rel~="${kind}"], .wp-block-post-terms a`);
+  const links = this.page.locator(TERM_LINKS[kind]);
   await expectText(links, name, notCase, {
     label: `the ${kind} links of the post`,
     hint: 'View the post on the public site first: When I view the post. A theme that hides terms fails this step.',
