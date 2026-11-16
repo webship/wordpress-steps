@@ -147,11 +147,13 @@ Other scripts:
 | `npm test` | Full suite, pretty output |
 | `npm run test:dry` | `--dry-run`: checks for undefined and ambiguous steps only |
 | `npm run test:examples` | No browser: every step's JSDoc carries five `Example #n:` lines that match its own definition and no other, and every feature step resolves to exactly one definition (also runs in CI) |
+| `npm run test:paths` | No browser: a feature or a scenario named on the command line runs alone, and naming none runs the whole suite (also runs in CI) |
 | `npm run test:headed` | Headed browser |
 | `npm run test:chromium` / `test:firefox` / `test:webkit` | Pick a browser |
 
 ### Lanes, subsets and the settings webship-js reads
 
+- `npx cucumber-js tests/features/login.feature` runs one feature and `npx cucumber-js tests/features/login.feature:<line>` one scenario (the line of its `Scenario:`); the paths of `cucumber.js` are left out when the command line names any.
 - `FEATURES=tests/features/a.feature,tests/features/b.feature npm test` runs a subset of the feature files; `CUCUMBER_TAGS=@critical npm test` runs a tag lane (the default run leaves `@wip` out).
 - `cucumber.js` carries the `video` block (`WEBSHIP_VIDEO=on-failure` records the browser) and the `javascript` block (`WEBSHIP_JS_ERROR_MODE=fail` fails a scenario on a JavaScript error; `@js-off` silences one scenario) that webship-js reads.
 - The step timeout is webship-js's own (45 seconds, set when it loads); `WEBSHIP_STEP_TIMEOUT=<milliseconds>` changes it, a `timeout` key in `cucumber.js` does not.
