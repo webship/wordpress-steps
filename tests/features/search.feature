@@ -17,6 +17,7 @@ Feature: Search
     Given I am on the homepage
     When I search the site for existing content
     Then the search results should include "Hello"
+    And the search results should not include "Sample Page"
 
   Scenario: Searching for a term with no matches is an empty result, not an error
     Given I am on the homepage

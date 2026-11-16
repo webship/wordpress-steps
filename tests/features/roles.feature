@@ -33,6 +33,39 @@ Feature: Accounts and roles
       | editor      | Users         |
       | author      | Pages         |
 
+  Scenario Outline: A role with the capability opens an administration screen
+    Given I am a logged in user with the "<handle>" user
+    When I go to the "<screen>" admin screen
+    Then I should not see the access denied screen
+    And the page should not return HTTP status 403
+    And I should be on the "<screen>" admin screen
+    And I should not be on the "Dashboard" admin screen
+
+    Examples:
+      | handle      | screen   |
+      | editor      | Pages    |
+      | author      | Posts    |
+      | contributor | Posts    |
+      | admin       | Plugins  |
+
+  Scenario: The dashboard shows an editor what an editor may use
+    Given I am a logged in user with the "editor" user
+    When I go to the "Dashboard" admin screen
+    Then I should see the "Activity" dashboard widget
+    And I should not see the "Site Health Status" dashboard widget
+    And the "Posts" admin submenu should list "Categories"
+
+  Scenario: An author's menus leave out what an author may not use
+    Given I am a logged in user with the "author" user
+    When I go to the "Dashboard" admin screen
+    Then the "Posts" admin submenu should list "Add Post"
+    And the "Posts" admin submenu should not list "Categories"
+    And the admin bar should list "New"
+
+  Scenario: A subscriber's admin bar offers nothing to create
+    Given I am a logged in user with the "subscriber" user
+    Then the admin bar should not list "New"
+
   Scenario: An account does not have a role it was not given
     Given I am a logged in user with the "editor" user
     Then my account should not have the "administrator" role
@@ -42,4 +75,5 @@ Feature: Accounts and roles
     Given I am a logged in user with the "editor" user
     When I go to the homepage
     Then the admin bar should show the account "editor"
+    And the admin bar should not show the account "subscriber"
 

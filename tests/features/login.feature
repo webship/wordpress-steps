@@ -8,6 +8,19 @@ Feature: Authentication
     Given I am on the login page
     Then the response status code should be 200
     And I should see the login form
+    And I should not see a login error
+    And I should not see a login message
+
+  # The login screen is drawn by core, not by the theme: none of the theme's
+  # parts, and none of the links the theme's pages carry in their head.
+  Scenario: The login screen is not a page of the theme
+    Given I am on the login page
+    Then I should not see the site title
+    And I should not see the header template part
+    And I should not see the footer template part
+    And I should not see a search form
+    And the page should not advertise the REST API
+    And the page should not link to the site feed
 
   # Credentials come from worldParameters.users in cucumber.js (overridable
   # with WP_ADMIN_USER and WP_ADMIN_PASSWORD), so no password appears here.
@@ -18,6 +31,8 @@ Feature: Authentication
     And I should be logged in as the "admin" user
     And I should see the admin bar
     And the path should not be "/wp-login.php"
+    And I should not be on the login page
+    And I should not see the login form
 
   Scenario: An authenticated session carries onto the front end
     Given I am a logged in user with the username "admin"

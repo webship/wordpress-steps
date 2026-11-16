@@ -28,3 +28,5 @@ Feature: Missing content
     Then I should see the header template part
     And I should see the footer template part
     And I should see the search form
+    And I should not see any post entries
+    And I should not see a comment form

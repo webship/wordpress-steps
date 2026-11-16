@@ -43,6 +43,7 @@ Feature: REST API
     Then the REST route "/wp/v2/users/me" should respond with status 200
     And the REST route "/wp/v2/settings" should respond with status 200
     And the REST route "/wp/v2/plugins" should respond with status 200
+    And the REST route "/wp/v2/settings" should not be refused
 
   Scenario: An editor reads the account but not the plugins
     Given I am a logged in user with the "editor" user

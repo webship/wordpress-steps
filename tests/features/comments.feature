@@ -8,6 +8,10 @@ Feature: Comments
     And I am on a post
     When I submit the comment "Webship visitor comment A"
     Then the comment "Webship visitor comment A" should be awaiting moderation
+    # Only the sender is shown the held comment, as a preview.
+    Given I am an anonymous user
+    And I am on a post
+    Then I should not see the comment "Webship visitor comment A"
     Given I am a logged in user with the "editor" user
     Then the comment "Webship visitor comment A" should be pending
     And the comment "Webship visitor comment A" should not be approved
