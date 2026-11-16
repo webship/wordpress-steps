@@ -14,6 +14,8 @@ Feature: Categories and tags
     And I publish the post
     And I view the post
     Then the post should be in the category "Webship reports"
+    And the post should not be in the category "Uncategorized"
+    And the post should not be in the tag "Webship reports"
     When I move the post "Webship categorised post" to the trash from the list
     And I delete the post "Webship categorised post" permanently
     And I delete the category "Webship reports"
@@ -28,6 +30,9 @@ Feature: Categories and tags
     And I publish the post
     And I view the post
     Then the post should be in the tag "webship-tag"
+    And the post should not be in the category "webship-tag"
+    And the post should be in the category "Uncategorized"
+    And the post should not be in the tag "Uncategorized"
     When I move the post "Webship tagged post" to the trash from the list
     And I delete the post "Webship tagged post" permanently
     And I delete the tag "webship-tag"
