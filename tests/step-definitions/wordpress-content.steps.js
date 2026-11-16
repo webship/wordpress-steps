@@ -585,7 +585,7 @@ When(/^(I |we )*file the post under the category "([^"]*)"$/, async function (pr
  * Example #2: When we tag the post with "release"
  * Example #3: And I tag the post with "testing"
  * Example #4: When I tag the post with "news"
- * Example #5: And we tag the post with "wordpress"
+ * Example #5: And we tag the post with "events"
  *
  */
 When(/^(I |we )*tag the post with "([^"]*)"$/, async function (pronounCase, name) {
