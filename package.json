@@ -5,6 +5,7 @@
   "main": "tests/step-definitions/wordpress.steps.js",
   "files": [
     "tests/step-definitions/",
+    "tests/features/",
     "README.md",
     "LICENSE"
   ],

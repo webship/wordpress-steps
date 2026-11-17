@@ -29,6 +29,109 @@ The pack's own suite runs against a real WordPress site in CI (built with [DDEV]
 
 Each step is documented with a JSDoc block and Gherkin examples in [`tests/step-definitions/`](tests/step-definitions/): `wordpress-session.steps.js` (sessions, accounts, roles), `wordpress.steps.js` (the public site), `wordpress-admin.steps.js` (the administration area), `wordpress-content.steps.js` (the block editor, lists, categories, tags and media), `wordpress-comments.steps.js` (comments and moderation), `wordpress-site.steps.js` (navigation, blocks, the page head), `wordpress-api.steps.js` (REST, feeds, robots, sitemap) and `wordpress-helpers.js` (shared helpers, no steps).
 
+## From nothing to a green run
+
+What the machine needs: Docker, [DDEV](https://ddev.com), curl, and Node.js 20 or later with npm. PHP, WP-CLI and the database run in DDEV's containers.
+
+**1. The WordPress site.** These are the commands CI runs (`.github/workflows/test.yml`): the latest WordPress with its default theme, the five accounts of [Test users](#test-users), the rewrite rules written out, and the `robots.txt` WordPress generates. It takes about a minute.
+
+```bash
+mkdir wordpress-site && cd wordpress-site
+ddev config --project-type=wordpress --project-name=wordpress-steps --docroot=web
+ddev start
+ddev wp core download --path=web
+ddev wp config create --path=web --dbname=db --dbuser=db --dbpass=db --dbhost=db --skip-check --force
+ddev wp core install --path=web --url="https://wordpress-steps.ddev.site" \
+  --title="Webship Test Site" --admin_user=admin --admin_password=admin \
+  --admin_email=admin@example.com --skip-email
+for role in editor author contributor subscriber; do
+  ddev wp user create "$role" "$role@example.com" --role="$role" --user_pass="$role" --path=web
+done
+ddev wp rewrite flush --hard --path=web
+curl -fsSk "https://wordpress-steps.ddev.site/?robots=1" -o web/robots.txt
+cd ..
+```
+
+The site answers at `https://wordpress-steps.ddev.site`. (The stock DDEV web server answers `/robots.txt` itself, hence the last command.)
+
+**2. A test project.**
+
+```bash
+mkdir wordpress-tests && cd wordpress-tests
+npm init -y
+npm install --save-dev webship-js @webship-js/wordpress-steps
+npx init-webship-js
+```
+
+`npx init-webship-js` writes `cucumber.js`, `playwright.config.ts`, the `tests/` folders with a first feature and the `npm test` scripts, and installs Chromium. npm usually runs it already when it installs webship-js; a second run changes nothing.
+
+**3. `cucumber.js`.** Replace the file with the wiring of the pack: the step files of webship-js and of the pack, the address of the site, and the accounts (the JSON of [Test users](#test-users)).
+
+```javascript
+module.exports = {
+  default: {
+    requireModule: ['tsx/cjs'],
+    require: [
+      'node_modules/webship-js/tests/step-definitions/**/*.js',
+      'node_modules/@webship-js/wordpress-steps/tests/step-definitions/**/*.js',
+      'tests/step-definitions/**/*.js',
+    ],
+    paths: ['tests/features/**/*.feature'],
+    format: ['@cucumber/pretty-formatter', 'json:tests/reports/cucumber_report.json'],
+    worldParameters: {
+      launchUrl: process.env.LAUNCH_URL || 'https://wordpress-steps.ddev.site',
+      // The waits webship-js adds around each page, scenario and step (milliseconds).
+      minWaitTime: { page: 3000, before_scenario: 0, after_scenario: 0, before_step: 0, after_step: 0 },
+      users: {
+        admin: { username: 'admin', password: 'admin' },
+        editor: { username: 'editor', password: 'editor' },
+        author: { username: 'author', password: 'author' },
+        contributor: { username: 'contributor', password: 'contributor' },
+        subscriber: { username: 'subscriber', password: 'subscriber' },
+      },
+    },
+  },
+};
+```
+
+**4. A first feature**, `tests/features/first-run.feature`:
+
+```gherkin
+Feature: First run
+  Scenario: An editor logs in and lands on the dashboard
+    Given I am a logged in user with the "editor" user
+    Then I should be on the "Dashboard" admin screen
+    And the admin menu should list "Posts"
+
+  Scenario: A visitor opens a post
+    Given I am an anonymous user
+    And I am on a post
+    Then I should see the post title
+```
+
+**5. Run it.**
+
+```bash
+npm test
+```
+
+A green first run prints every step, then the summary (the starter feature of `npx init-webship-js` and the two scenarios above, passed) and the HTML report it wrote:
+
+```
+3 scenarios (3 passed)
+8 steps (8 passed)
+0m06.000s (executing steps: 0m05.900s)
+[webship-js] HTML report → …/tests/reports/cucumber_report.html
+```
+
+From there, copy the features of [`tests/features/`](tests/features/) (they also ship in the package, under `node_modules/@webship-js/wordpress-steps/tests/features/`): together they use every step of the pack, in both readings where a step reads both ways. Steps that check a status code over HTTPS read DDEV's certificate authority: run them with `NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem"`, as CI does.
+
+### What the suite tests
+
+The features of this repository run every step of the pack against the default site, in CI on every change: logging in and out, the login screen and its notices, the lost password screen, each role's landing screen, menus, admin bar and refusals, the dashboard and its widgets, posts and pages in the block editor (create, publish, update, draft, submit for review, trash, restore, delete), categories and tags, the media library, comments and their moderation, search, the navigation menu, blocks and template parts, the 404 page, settings, plugins and themes, Site Health, the REST API, the feeds, `robots.txt`, the sitemap and an accessibility audit.
+
+Not tested: the Site Editor and the Customizer, menus of classic themes and widgets (the default theme is a block theme), multisite, user and role management (the suite never creates accounts), installing plugins and themes, and e-mail delivery (the lost password scenario stops at the screen that says an e-mail was sent).
+
 ## Requirements
 
 - Node.js >= 20
@@ -136,20 +239,21 @@ LAUNCH_URL=https://your-site.example npm test   # runs against your own site
 CI (`.github/workflows/test.yml`) does not depend on an external site: it builds a default WordPress install on the runner with [DDEV](https://ddev.com/) and runs the suite against it. To do the same locally:
 
 ```bash
-ddev config --project-type=wordpress --project-name=wordpress-steps --docroot=web --create-docroot
+ddev config --project-type=wordpress --project-name=wordpress-steps --docroot=web
 ddev start
 ddev wp core download --path=web
-ddev wp config create --path=web --dbname=db --dbuser=db --dbpass=db --dbhost=db --skip-check
+ddev wp config create --path=web --dbname=db --dbuser=db --dbpass=db --dbhost=db --skip-check --force
 ddev wp core install --path=web --url="https://wordpress-steps.ddev.site" \
-  --title="wordpress-steps local" --admin_user=admin --admin_password=admin \
+  --title="Webship Test Site" --admin_user=admin --admin_password=admin \
   --admin_email=admin@example.com --skip-email
 for role in editor author contributor subscriber; do
   ddev wp user create "$role" "$role@example.com" --role="$role" --user_pass="$role" --path=web
 done
+ddev wp rewrite flush --hard --path=web
 
 # The stock DDEV nginx configuration answers /robots.txt with a 404 instead of
 # passing it to WordPress; write the file WordPress generates for the robots.txt steps.
-curl -sk "https://wordpress-steps.ddev.site/?robots=1" -o web/robots.txt
+curl -fsSk "https://wordpress-steps.ddev.site/?robots=1" -o web/robots.txt
 
 LAUNCH_URL=https://wordpress-steps.ddev.site npm test
 ```
