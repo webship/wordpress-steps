@@ -124,7 +124,7 @@ A green first run prints every step, then the summary (the starter feature of `n
 [webship-js] HTML report → …/tests/reports/cucumber_report.html
 ```
 
-From there, copy the features of [`tests/features/`](tests/features/) (they also ship in the package, under `node_modules/@webship-js/wordpress-steps/tests/features/`): together they use every step of the pack, in both readings where a step reads both ways. Steps that check a status code over HTTPS read DDEV's certificate authority: run them with `NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem"`, as CI does.
+From there, copy the features of [`tests/features/`](tests/features/) (they also ship in the package, under `node_modules/@webship-js/wordpress-steps/tests/features/`): together they use every step of the pack, in both readings where a step reads both ways. The media features upload `webshipco.png` and `test-document.pdf` from `tests/assets/`, which ship as well: copy them into the project's `tests/assets/` with the features. Steps that check a status code over HTTPS read DDEV's certificate authority: run them with `NODE_EXTRA_CA_CERTS="$(mkcert -CAROOT)/rootCA.pem"`, as CI does.
 
 ### What the suite tests
 
