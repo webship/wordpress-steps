@@ -550,7 +550,39 @@ async function editorPost(world) {
 }
 
 /**
- * Wait until the editor finished saving, and report the saved post.
+ * Start keeping the notices the editor adds from now on: call it right before
+ * the click that saves. A snackbar such as "Post updated." goes after a few
+ * seconds, sooner than a step that follows the save may read it; the notices
+ * store (`core/notices`) is watched in the page and every notice it gains,
+ * with the content it has then, is kept until the next save.
+ *
+ * @param {object} world
+ * @returns {Promise<void>}
+ */
+async function watchEditorNotices(world) {
+  world.wordpressEditorNotices = [];
+  await world.page.evaluate(() => {
+    const store = window.wp.data.select('core/notices');
+    const seen = new Set(store.getNotices().map((n) => `${n.id}|${n.content}`));
+    window.__webshipEditorNotices = [];
+    if (window.__webshipEditorNoticesStop) window.__webshipEditorNoticesStop();
+    window.__webshipEditorNoticesStop = window.wp.data.subscribe(() => {
+      for (const n of window.wp.data.select('core/notices').getNotices()) {
+        const key = `${n.id}|${n.content}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          window.__webshipEditorNotices.push({ type: n.type, content: String(n.content || '') });
+        }
+      }
+    });
+  }).catch(() => {});
+}
+
+/**
+ * Wait until the editor finished saving, and report the saved post. The
+ * notices the save brought up are kept in `world.wordpressEditorNotices`
+ * (see watchEditorNotices); the snackbar of a save comes right after it, so
+ * this waits up to two seconds for one.
  *
  * @param {object} world
  * @returns {Promise<{id: number, status: string, type: string, link: string}>}
@@ -564,6 +596,8 @@ async function waitForEditorSaved(world) {
   } catch (err) {
     throw friendly({ message: 'The editor did not finish saving.', cause: err, hint: 'Check the page for a save error notice.' });
   }
+  await world.page.waitForFunction(() => (window.__webshipEditorNotices || []).some((n) => n.type === 'snackbar'), null, { timeout: 2000 }).catch(() => {});
+  world.wordpressEditorNotices = await world.page.evaluate(() => (window.__webshipEditorNotices || []).map((n) => n.content)).catch(() => []);
   return editorPost(world);
 }
 
@@ -572,6 +606,7 @@ module.exports = {
   editorCanvas,
   editorPost,
   waitForEditorSaved,
+  watchEditorNotices,
   WAIT_TIMEOUT,
   ADMIN_SCREENS,
   supplied,

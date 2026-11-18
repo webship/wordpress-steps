@@ -18,11 +18,13 @@ const {
   navigate,
   expectText,
   expectRendered,
+  textPattern,
   adminScreenPath,
   waitForEditor,
   editorCanvas,
   editorPost,
   waitForEditorSaved,
+  watchEditorNotices,
   WAIT_TIMEOUT,
 } = require('./wordpress-helpers');
 
@@ -173,6 +175,7 @@ async function pressPrimaryAction(world, expectedLabels) {
   if ((await button.getAttribute('aria-disabled')) === 'true') {
     throw friendly({ message: `The "${label}" button is disabled.`, hint: 'The entry has no changes to save, or has no title or content yet.' });
   }
+  await watchEditorNotices(world);
   await button.click();
   const panel = world.page.locator('.editor-post-publish-panel');
   const confirm = panel.locator('.editor-post-publish-button');
@@ -235,6 +238,7 @@ When(/^(I |we )*update the (post|page)$/, async function (pronounCase, noun) {
 When(/^(I |we )*save the (post|page) as a draft$/, async function (pronounCase, noun) {
   const button = this.page.locator('.editor-header .editor-post-save-draft').first();
   await expectRendered(button, false, { label: 'the "Save draft" button', hint: 'Open the editor on an unpublished entry first, with some content.', timeout: budget(this) });
+  await watchEditorNotices(this);
   await button.click();
   const post = await waitForEditorSaved(this);
   this.contentId = post.id;
@@ -332,7 +336,10 @@ Then(/^the (post|page) should( not)* be (published|a draft|pending review|schedu
 
 /**
  * Assert the editor shows a notice (a snackbar) such as "Post published.",
- * "Post updated." or "Draft saved."
+ * "Post updated." or "Draft saved.", or showed it when the last save of the
+ * editor finished: a snackbar goes after a few seconds, which can be sooner
+ * than the step that follows the save reads it. The negative form fails on a
+ * notice that is shown or that the last save showed.
  *
  * Example #1: Then I should see the editor notice "Post published."
  * Example #2: And we should see the editor notice "Post updated."
@@ -342,6 +349,14 @@ Then(/^the (post|page) should( not)* be (published|a draft|pending review|schedu
  *
  */
 Then(/^(I |we )*should( not)* see the editor notice "([^"]*)"$/, async function (pronounCase, notCase, text) {
+  const shown = (this.wordpressEditorNotices || []).some((notice) => textPattern(text).test(notice));
+  if (shown && !notCase) return;
+  if (shown && notCase) {
+    throw friendly({
+      message: `Expected the editor not to show the notice "${text}".`,
+      cause: `the last save showed: ${this.wordpressEditorNotices.map((notice) => `"${notice}"`).join(', ')}`,
+    });
+  }
   await expectText(this.page.locator('.components-snackbar, .components-notice'), text, notCase, {
     label: 'the editor notices',
     hint: 'Editor notices disappear after a few seconds; assert right after the action.',
