@@ -6,6 +6,7 @@
   "files": [
     "tests/step-definitions/",
     "tests/features/",
+    "tests/assets/",
     "README.md",
     "LICENSE"
   ],
