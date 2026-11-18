@@ -54,6 +54,20 @@ cd ..
 
 The site answers at `https://wordpress-steps.ddev.site`. (The stock DDEV web server answers `/robots.txt` itself, hence the last command.)
 
+In the [Webship Workspace](https://github.com/webship/workspace), its WordPress plugin builds the site instead, the latest WordPress, in a sites folder of the workspace (`test/` here; `dev/`, `sandboxes/` and `demos/` work the same):
+
+```bash
+bash core/scripts/plugins.sh --require wordpress --with-needs
+bash core/scripts/plugins.sh --activate wordpress --with-needs
+bash core/scripts/plugins.sh --install wordpress
+bash test/cmd-wordpress-project.sh mysite --install --add-users
+```
+
+That site answers at `https://mysite.ddev.site`. Its accounts are the plugin's (`administrator`, `editor`, `author`, `contributor` and `subscriber`, each with the password `dD.123123ddd`; step 3 names them). The features of
+[`tests/features/`](tests/features/) pass there too, once WordPress's own
+`robots.txt` is written into the site's folder the way the last command above
+does it: `curl -fsSk "https://mysite.ddev.site/?robots=1" -o test/mysite/robots.txt`.
+
 **2. A test project.**
 
 ```bash
@@ -94,6 +108,8 @@ module.exports = {
 };
 ```
 
+On a site from the Webship Workspace (step 1), the accounts are the plugin's: `admin: { username: 'administrator', password: 'dD.123123ddd' }`, and `editor`, `author`, `contributor` and `subscriber` with the same password. Its address goes in `LAUNCH_URL` (step 5).
+
 **4. A first feature**, `tests/features/first-run.feature`:
 
 ```gherkin
@@ -115,6 +131,7 @@ Feature: First run
 npm test
 ```
 
+(`LAUNCH_URL=https://mysite.ddev.site npm test` for a site at another address.)
 A green first run prints every step, then the summary (the starter feature of `npx init-webship-js` and the two scenarios above, passed) and the HTML report it wrote:
 
 ```
