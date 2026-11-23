@@ -31,7 +31,7 @@ Each step is documented with a JSDoc block and Gherkin examples in [`tests/step-
 
 ## From nothing to a green run
 
-What the machine needs: Docker, [DDEV](https://ddev.com), curl, and Node.js 20 or later with npm. PHP, WP-CLI and the database run in DDEV's containers.
+What the machine needs: Docker, [DDEV](https://ddev.com), curl, and Node.js 24 or later with npm. PHP, WP-CLI and the database run in DDEV's containers.
 
 **1. The WordPress site.** These are the commands CI runs (`.github/workflows/test.yml`): the latest WordPress with its default theme, the five accounts of [Test users](#test-users), the rewrite rules written out, and the `robots.txt` WordPress generates. It takes about a minute.
 
@@ -151,7 +151,7 @@ Not tested: the Site Editor and the Customizer, menus of classic themes and widg
 
 ## Requirements
 
-- Node.js >= 20
+- Node.js >= 24
 - An existing [webship-js](https://www.npmjs.com/package/webship-js) 2.x test project (or run `npx init-webship-js` to create one)
 
 ## Installation
